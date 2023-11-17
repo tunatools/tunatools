@@ -1,0 +1,23 @@
+#This file builds the datcnv.psa in the following way
+#
+#if there is this sensor:
+#    counts: this many times
+#       add this conversion
+TurbidityMeter:
+    counts: 1
+    FullName: Turbidity, WET Labs ECO [NTU]
+    UnitID: 45
+    CalcID: 150
+FluoroWetlabECO_AFL_FL_Sensor:
+    counts: 1
+    FullName: Fluorescence, WET Labs ECO-AFL/FL [mg/m^3]
+    UnitID: 38
+    CalcID: 93
+PAR_BiosphericalLicorChelseaSensor:
+    counts: 1
+    FullName: PAR/Irradiance, Biospherical/Licor
+    UnitID: -1
+    CalcID: 59
+    extra:
+        PAR_Units:
+            value: 0

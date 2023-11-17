@@ -1,0 +1,20 @@
+# Account for the fact that water flows through or past the sensors and doesn't reach them all at the same time / the same depth. 
+# General setup: first Temperature sensor, then Conductivity, then Oxygen
+# Value is the time in seconds that the sensor input will be advanced
+# Acoording to the Seabird manual, the Temperature and Conductivity delay should be set to 0 s for a SBE9 plus (like IB Odens' SBE911) because the software automatically corrects 
+# for the spatial distance between the two sensors (https://www.seabird.com/asset-get.download.jsa?id=55174002258)
+Temperature [ITS-90, deg C]:
+  value: 0
+Temperature, 2 [ITS-90, deg C]:
+  value: 0
+Conductivity [S/m]:
+  value: 0
+Conductivity, 2 [S/m]: 
+  value: 0
+# acoording to Seabird manual, oxygen delay should be set to 5 s in temperature of around 0 degree C (https://www.seabird.com/asset-get.download.jsa?id=55174002258)
+Oxygen raw, SBE 43 [V]:
+  value: 5
+# Extra entries are ignored if there is no data corresponding to this type
+Oxygen raw, 2 SBE 43 [V]: 
+  value: 5
+

@@ -1,0 +1,4 @@
+psa_celltm: data\psa_files\celltm_generic.psa
+psa_loopedit: data\psa_files\loopedit_generic.psa
+psa_derive: data\psa_files\derive_generic.psa
+psa_binavg: data\psa_files\binavg_generic.psa

@@ -1,0 +1,33 @@
+- FullName: Scan Count
+  UnitID: -1
+  CalcID: 72
+- FullName: Pressure, Digiquartz [db]
+  UnitID: 3
+  CalcID: 65
+- FullName: Temperature [ITS-90, deg C]
+  UnitID: 6
+  CalcID: 81
+- FullName: Temperature [ITS-90, deg C]
+  UnitID: 6
+  CalcID: 81
+- FullName: Conductivity [S/m]
+  UnitID: 58
+  CalcID: 12
+- FullName: Conductivity [S/m]
+  UnitID: 58
+  CalcID: 12
+- FullName: Pump Status
+  UnitID: -1
+  CalcID: 69
+- FullName: Oxygen raw, SBE 43 [V]
+  UnitID: 63
+  CalcID: 57
+  extra:
+    ApplyHysteresisCorrection:
+      value: 1
+- FullName: Descent Rate [m/s]
+  UnitID: 32
+  CalcID: 18
+  extra:
+    WindowSize:
+      value: 2.0

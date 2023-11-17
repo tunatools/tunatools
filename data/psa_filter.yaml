@@ -1,0 +1,21 @@
+# Remove to not filter, or change to value: 0
+Temperature [ITS-90, deg C]:
+  value: 2
+Conductivity [S/m]:
+  value: 1
+Turbidity, WET Labs ECO [NTU]:
+  value: 2
+# Extra entries are ignored if there is no data corresponding to this type
+Tunasalad:
+  value: 4
+
+
+# Filter parameters that correspond to value chosen above
+extra:
+  #This is value 1
+  TimeConstFilterA:
+    value: 0.03
+  #This is value 2
+  TimeConstFilterB:
+    value: 0.15
+

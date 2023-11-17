@@ -1,0 +1,89 @@
+MiscellaneousDataForCalculations:
+  Latitude:
+    value: "80."
+  Longitude:
+    value: "0.000000"
+  DescentRateAndAcceleration:
+    WindowSize:
+      value: "2.000000"
+  Oxygen:
+    WindowSize:
+      value: "2.000000"
+    ApplyHysteresisCorrection:
+      value: "1"
+    ApplyTauCorrection:
+      value: "1"
+  AverageSoundVelocity:
+    MinimumPressure:
+      value: "20.000000"
+    MinimumSalinity:
+      value: "20.000000"
+    PressureWindowSize:
+      value: "20.000000"
+    TimeWindowSize:
+      value: "60.000000"
+  PlumeAnomaly:
+    ThetaB:
+      value: "0.000000"
+    SalinityB:
+      value: "0.000000"
+    ThetaZSalinityZRatio:
+      value: "0.000000"
+    ReferencePressure:
+      value: "0.000000"
+  PotentialTempAnomaly:
+    A0:
+      value: "0.000000"
+    A1:
+      value: "0.000000"
+    A1Multiplier:
+      value: "0"
+InstrumentPath:
+  value: ""
+InstrumentMatch:
+  value: "1"
+
+ProcessScansToEnd:
+  value: "1"
+ScansToSkip:
+  value: "0"
+ScansToProcess:
+  value: "1" # only has relevance if ProcessScanstoEnd is 0-->
+MergeHeaderFile:
+  value: "0"
+OutputFormat:
+  # 0: ASCII; 1: Binary
+  value: "0"
+  high: "1"
+  low: "0"
+  initialValue: "0"
+FromCast:
+  # 0: Up and downcast; 1: Only Downcast
+  value: "0"
+  high: "1"
+  low: "0"
+  initialValue: "0"
+
+#This is edited automatically based on the existence of a .bl file
+CreateFile:
+  # 0: only .cnv; 1: only .ros; 2: .ros and .cnv. 0 and 1 require an .bl file
+  value: "0"
+  high: "2"
+  low: "0"
+  initialValue: "0"
+
+ScanRangeSource:
+  # 1: from .bl file
+  value: "1"
+  high: "3"
+  low: "0"
+  initialValue: "1"
+ScanRangeOffset:
+  value: "0.000000"
+ScanRangeDuration:
+  value: "2.000000"
+StartTimeOption:
+  # 0: INSTRUMENT TIME STAMP; 1: NMEA TIME; 2: UTC
+  value: "0"
+PromptForNoteAndOrStartTime:
+  value: "0"
