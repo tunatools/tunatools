@@ -25,9 +25,10 @@ def createCalcArrayItem(calcArray, object, Ordinal, index):
     fullname = object['FullName']
     if Ordinal > 0:
         fullname = re.sub(r'(.*) \[(.*)\]', fr'\1, {Ordinal+1} [\2]', fullname)
-    fn.text= fullname
+    fn.set('value', fullname)
     if 'extra' in object.keys():
         calc.extend(yaml_to_xml(object['extra']))
+
 def build_CalcArray(xmlcon, defaults, extras, ignore_ids=[]):
     calcArray = ET.Element('CalcArray')
     index = 0
@@ -129,8 +130,8 @@ def create_filter_psa(group_of_files, name):
         fullname = arrayelement.find('.//FullName')
         # TODO: fix ,2
         # TODO: remove pump status, count
-        if fullname.text in filter:
-            value = filter[fullname.text]['value']
+        if fullname.get('value') in filter:
+            value = filter[fullname.get('value')]['value']
         else:
             value = 0
         ai = ET.SubElement(fta, 'ArrayItem')
@@ -168,8 +169,8 @@ def create_alignctd_psa(group_of_files, name):
         index = arrayelement.get('index')
         fullname = arrayelement.find('.//FullName')
 
-        if fullname.text in alignctd:
-            value = alignctd[fullname.text]['value']
+        if fullname.get('value') in alignctd:
+            value = alignctd[fullname.get('value')]['value']
         else:
             value = 0
         ai = ET.SubElement(aca, 'ValArrayItem')
