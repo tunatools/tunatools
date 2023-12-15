@@ -1,6 +1,9 @@
 - FullName: Scan Count
   UnitID: -1
   CalcID: 72
+- FullName: Altimeter [m]
+  UnitID: 29
+  CalcID: 1
 - FullName: Pressure, Digiquartz [db]
   UnitID: 3
   CalcID: 65

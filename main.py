@@ -1,3 +1,4 @@
+import datetime
 import xml.etree.ElementTree as ET
 
 import os
@@ -84,7 +85,7 @@ def yaml_to_xml(yaml, parent = None):
 
 base_path =  Path(Path(__file__).parent)
 
-def create_datcnv_psa(group_of_files, name):
+def create_datcnv_psa(group_of_files, name, xmlcon):
     dc = ET.Element('Data_Conversion')
     main = ET.ElementTree(dc)
     root = main.getroot()
@@ -100,10 +101,13 @@ def create_datcnv_psa(group_of_files, name):
     servername.set('value', 'Data Conversion') # not required
     xmlcon_file, CalcArray = base_psa(group_of_files, ignore_ids=[])
     root.extend([CalcArray])
+    hexfile = {file.suffix: file for file in group_of_files}
+    sharktools_name, year = create_sharktools_name(xmlcon_file, hexfile['.hex'])
+    root.find('./OutputFile').set('value', sharktools_name)
     psa_filename = Path(base_path, 'data', 'psa_files', f'dat_cnv_{name}.psa')
     ET.indent(main) # requires python 3.9
     main.write(psa_filename)
-    return xmlcon_file, psa_filename
+    return xmlcon_file, psa_filename, sharktools_name, year
 
 def create_filter_psa(group_of_files, name):
     dc = ET.Element('Filter')
@@ -129,7 +133,6 @@ def create_filter_psa(group_of_files, name):
         index = arrayelement.get('index')
         fullname = arrayelement.find('.//FullName')
         # TODO: fix ,2
-        # TODO: remove pump status, count
         if fullname.get('value') in filter:
             value = filter[fullname.get('value')]['value']
         else:
@@ -142,6 +145,23 @@ def create_filter_psa(group_of_files, name):
     ET.indent(main) # requires python 3.9
     main.write(psa_filename)
     return psa_filename
+
+def create_sharktools_name(xmlcon_file, hexfile):
+    #sbe09_{pressuresensor:04d}_{datetime.strfrmtime('%Y%m%d_%H%M')}_Ship(d2w2)_cruise_serno
+    xmlcon = ET.parse(xmlcon_file).getroot()
+    pressure_sensor = xmlcon.find('.//PressureSensor/SerialNumber').text
+    assert pressure_sensor != ""
+    with open(hexfile, 'r') as hex:
+        hex_data = hex.read()
+        date = re.search('^\* System UTC = ([\w \d:]*)$', hex_data, re.M)
+        assert date
+        meassurement_start = datetime.datetime.strptime(date[1], '%b %d %Y %H:%M:%S')
+        meassurement_start_str = meassurement_start.strftime('%Y%m%d_%H%M')
+        #* System UTC = May 17 2023 10:50:11
+    with open(Path(base_path, 'data', 'expedition_specific.yaml'), 'r') as yaml_file:
+        extra_data = yaml.safe_load(yaml_file)
+    return f'sbe09_{pressure_sensor}_{meassurement_start_str}_{extra_data["ship_name"]}_{extra_data["cruise_number"]:02d}_0000.cnv', str(meassurement_start.year)
+
 
 def create_alignctd_psa(group_of_files, name):
     dc = ET.Element('Align_CTD')
@@ -201,32 +221,35 @@ with open('ctd_processing_psa.txt', 'w') as sbe_params:
     for path in raw_data_folder.glob('*.hex'):
         name = path.stem
         group = list(raw_data_folder.glob(f'{name}.*'))
-        xmlcon_file, psa_filename = create_datcnv_psa(group, name)
+        xmlcon_file, psa_filename, sharktools_name, year = create_datcnv_psa(group, name, path)
+        output_dir = Path(base_path, 'data', 'output', year, 'cnv') #this stucture is required by sharktools
+        os.makedirs(output_dir, exist_ok=True)
+        sharktools_output = Path(output_dir, sharktools_name)
         sbe_params.write(
-            f'''datcnv /p{psa_filename} /i{path} /c{xmlcon_file} /o{Path(base_path, 'data', 'output')}\n'''
+            f'''datcnv /p{psa_filename} /i{path} /c{xmlcon_file} /o{output_dir}\n'''
         )
         filter_filename = create_filter_psa(group, name)
         sbe_params.write(
-            f'''filter /p{filter_filename} /i{Path(base_path, 'data', 'output', name+'.cnv')} /o{Path(base_path, 'data','output')}\n'''
+            f'''filter /p{filter_filename} /i{sharktools_output} /o{output_dir}\n'''
         )
         alignctd_filename = create_alignctd_psa(group, name)
         sbe_params.write(
-            f'''alignctd /p{alignctd_filename} /i{Path(base_path, 'data', 'output', name+'.cnv')} /o{Path(base_path, 'data','output')}\n'''
+            f'''alignctd /p{alignctd_filename} /i{sharktools_output} /o{output_dir}\n'''
         )
         sbe_params.write(
-            f'''celltm /p{celltm_filename} /i{Path(base_path, 'data', 'output', name+'.cnv')} /o{Path(base_path, 'data','output')}\n'''
+            f'''celltm /p{celltm_filename} /i{sharktools_output} /o{output_dir}\n'''
         )
         sbe_params.write(
-            f'''loopedit /p{loopedit_filename} /i{Path(base_path, 'data', 'output', name+'.cnv')} /o{Path(base_path, 'data','output')}\n'''
+            f'''loopedit /p{loopedit_filename} /i{sharktools_output} /o{output_dir}\n'''
         )
         sbe_params.write(
-            f'''derive /p{derive_filename} /i{Path(base_path, 'data', 'output', name+'.cnv')} /c{xmlcon_file} /o{Path(base_path, 'data','output')}\n'''
+            f'''derive /p{derive_filename} /i{sharktools_output} /c{xmlcon_file} /o{output_dir}\n'''
         )
         sbe_params.write(
-            f'''binavg /p{binavg_filename} /i{Path(base_path, 'data', 'output', name+'.cnv')} /o{Path(base_path, 'data','output')}\n'''
+            f'''binavg /p{binavg_filename} /i{sharktools_output} /o{output_dir}\n'''
         )
 
-
+# Output must be year/cnv
 
 import subprocess
 subprocess.call([
