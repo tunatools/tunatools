@@ -1,0 +1,2 @@
+ship_name: 01od # 01 Oden. Please be aware that this has to be \d{2}\w{2} for Sharktools
+cruise_number: 01 #official name is cruise must be \d{2]
