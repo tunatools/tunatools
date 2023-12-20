@@ -8,6 +8,12 @@ import re
 
 
 base_path =  Path(Path(__file__).parent)
+input = Path(base_path, 'data', 'raw')
+output = Path(base_path, 'data', 'output')
+if not input.is_dir():
+    os.makedirs(input)
+if not output.is_dir():
+    os.makedirs(output)
 
 def insert_sensor(tree, sensor):
     calc_array = tree.find('CalcArray')
