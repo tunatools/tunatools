@@ -4,20 +4,49 @@
 #    counts: this many times
 #       add this conversion
 TurbidityMeter:
-    counts: 1
-    FullName: Turbidity, WET Labs ECO [NTU]
-    UnitID: 45
-    CalcID: 150
+    - FullName: Turbidity, WET Labs ECO [NTU]
+      UnitID: 45
+      CalcID: 150
 FluoroWetlabECO_AFL_FL_Sensor:
-    counts: 1
-    FullName: Fluorescence, WET Labs ECO-AFL/FL [mg/m^3]
-    UnitID: 38
-    CalcID: 93
+    - FullName: Fluorescence, WET Labs ECO-AFL/FL [mg/m^3]
+      UnitID: 38
+      CalcID: 93
 PAR_BiosphericalLicorChelseaSensor:
-    counts: 1
-    FullName: PAR/Irradiance, Biospherical/Licor
-    UnitID: -1
-    CalcID: 59
-    extra:
+    - FullName: PAR/Irradiance, Biospherical/Licor
+      UnitID: -1
+      CalcID: 59
+      extra:
         PAR_Units:
             value: 0
+
+AltimeterSensor:
+    - FullName: Altimeter [m]
+      UnitID: 29
+      CalcID: 1
+PressureSensor:
+    - FullName: Pressure, Digiquartz [db]
+      UnitID: 3
+      CalcID: 65
+TemperatureSensor:
+    - FullName: Temperature [ITS-90, deg C]
+      UnitID: 6
+      CalcID: 81
+ConductivitySensor:
+    - FullName: Conductivity [S/m]
+      UnitID: 58
+      CalcID: 12
+OxygenSensor:
+    - FullName: Oxygen raw, SBE 43 [V]
+      UnitID: 63
+      CalcID: 57
+      extra:
+        ApplyHysteresisCorrection:
+            value: 1
+Fluorometer:
+    - FullName: Fluorescence, WET Labs ECO-AFL/FL [mg/m^3]
+      UnitID: 38
+      CalcID: 93
+FluoroWetlabCDOM_Sensor:
+    - FullName: Fluorescence, WET Labs CDOM [mg/m^3]
+      UnitID: 38
+      CalcID: 101

@@ -1,0 +1,55 @@
+#This file builds the datcnv.psa in the following way
+#
+#if there is this sensor:
+#    counts: this many times
+#       add this conversion
+
+ConductivitySensor:
+    - FullName: Salinity, Practical [PSU]
+      UnitID: 49
+      CalcID: 70
+TemperatureSensor:
+    - FullName: Potential Temperature [ITS-90, deg C]
+      UnitID: 6
+      CalcID: 62
+AltimeterSensor:
+    - FullName: Depth [salt water, m]
+      UnitID: 31
+      CalcID: 17
+      extra:
+        Latitude:
+          value: 57.
+    - FullName: Depth [fresh water, m]
+      UnitID: 30
+      CalcID: 17
+      extra:
+          Latitude:
+              value: 57.
+PressureSensor:
+    - FullName: Density [density, kg/m^3]
+      UnitID: 11
+      CalcID: 15
+    - FullName: Sound Velocity [Chen-Millero, m/s]
+      UnitID: 33
+      CalcID: 74
+OxygenSensor:
+    - FullName: Oxygen, SBE 43 [ml/l]
+      UnitID: 40
+      CalcID: 55
+      extra:
+        WindowSize:
+          value: 2.0
+        ApplyHysteresisCorrection:
+          value: 1
+        ApplyTauCorrection:
+          value: 1
+    - FullName: Oxygen, SBE 43 [% saturation]
+      UnitID: 47
+      CalcID: 55
+      extra:
+          WindowSize:
+              value: 2.0
+          ApplyHysteresisCorrection:
+              value: 1
+          ApplyTauCorrection:
+              value: 1

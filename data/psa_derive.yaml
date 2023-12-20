@@ -1,0 +1,44 @@
+MiscellaneousDataForCalculations:
+  Latitude:
+    value: "80."
+  Longitude:
+    value: "0."
+  DescentRateAndAcceleration:
+    WindowSize:
+      value: "2.000000"
+  Oxygen:
+    WindowSize:
+      value: "2.000000"
+    ApplyHysteresisCorrection:
+      value: "1"
+    ApplyTauCorrection:
+      value: "1"
+  AverageSoundVelocity:
+    MinimumPressure:
+      value: "20.000000"
+    MinimumSalinity:
+      value: "20.000000"
+    PressureWindowSize:
+      value: "20.000000"
+    TimeWindowSize:
+      value: "60.000000"
+  PlumeAnomaly:
+    ThetaB:
+      value: "0.000000"
+    SalinityB:
+      value: "0.000000"
+    ThetaZSalinityZRatio:
+      value: "0.000000"
+    ReferencePressure:
+      value: "0.000000"
+  PotentialTempAnomaly:
+    A0:
+      value: "0.000000"
+    A1:
+      value: "0.000000"
+    A1Multiplier:
+      value: "0"
+InstrumentPath:
+  value: ""
+InstrumentMatch:
+  value: "0" # 1 causes SBE to look for the .xmlcon in the cnv folder!

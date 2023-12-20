@@ -7,6 +7,8 @@ import yaml
 import re
 
 
+base_path =  Path(Path(__file__).parent)
+
 def insert_sensor(tree, sensor):
     calc_array = tree.find('CalcArray')
     array_size = int(calc_array.get('Size'))
@@ -16,56 +18,58 @@ def insert_sensor(tree, sensor):
     calc_array.extend([xml])
 
 def createCalcArrayItem(calcArray, object, Ordinal, index):
-    calcArrayItem = ET.SubElement(calcArray, 'CalcArrayItem')
-    calcArrayItem.set('index', str(index))
-    calcArrayItem.set('CalcID', str(object['CalcID']))
-    calc = ET.SubElement(calcArrayItem, 'Calc')
-    calc.set('UnitID', str(object['UnitID']))
-    calc.set('Ordinal', str(Ordinal))
-    fn = ET.SubElement(calc, 'FullName')
-    fullname = object['FullName']
-    if Ordinal > 0:
-        fullname = re.sub(r'(.*) \[(.*)\]', fr'\1, {Ordinal+1} [\2]', fullname)
-    fn.set('value', fullname)
-    if 'extra' in object.keys():
-        calc.extend(yaml_to_xml(object['extra']))
+    calcItems = 0
+    if type(object) is not list:
+        object = [object]
+    for x in range(Ordinal):
+        for obj in object:
+            calcArrayItem = ET.SubElement(calcArray, 'CalcArrayItem')
+            calcArrayItem.set('index', str(index+calcItems))
+            calcArrayItem.set('CalcID', str(obj['CalcID']))
+            calc = ET.SubElement(calcArrayItem, 'Calc')
+            calc.set('UnitID', str(obj['UnitID']))
+            calc.set('Ordinal', str(x))
+            fn = ET.SubElement(calc, 'FullName')
+            fullname = obj['FullName']
+            if x > 0:
+                fullname = re.sub(r'(.*) \[(.*)\]', fr'\1, {x+1} [\2]', fullname)
+            fn.set('value', fullname)
+            if 'extra' in obj.keys():
+                calc.extend(yaml_to_xml(obj['extra']))
+            calcItems += 1
+    return calcItems
 
-def build_CalcArray(xmlcon, defaults, extras, ignore_ids=[]):
+def build_CalcArray(xmlcon, defaults, extras, ignore_ids, ignore_sensors):
     calcArray = ET.Element('CalcArray')
     index = 0
+    sensor_types = [s.tag for s in xmlcon.findall('.//Sensor/*')]
     for default in defaults:
         # Filters and so on don't need these in their processing
         if default['UnitID'] in ignore_ids:
             continue
-        same_type = calcArray.findall(f'.//CalcArrayItem[@CalcID="{default["CalcID"]}"]')
-        createCalcArrayItem(calcArray, default, len(same_type), index)
-        index += 1
-    sensor_types = [s.tag for s in xmlcon.findall('.//Sensor/*')]
-    for req, extra in extras.items():
-        if sensor_types.count(req) >= extra['counts']:
-            if default['UnitID'] in ignore_ids:
-                continue
-            same_type = calcArray.findall(f'.//CalcArrayItem[@CalcID="{extra["CalcID"]}"]')
-            createCalcArrayItem(calcArray, extra, len(same_type), index)
-            index += 1
+        index += createCalcArrayItem(calcArray, default, 1, index)
+    for sensor in set(sensor_types):
+        if sensor in ignore_sensors + ["NotInUse"]:
+            continue
+        index += createCalcArrayItem(calcArray, extras[sensor], sensor_types.count(sensor), index)
     calcArray.set('Size', str(index))
     return calcArray
 
-def base_psa(group_of_files, ignore_ids=[-1]):
-    suffixes = set([file.suffix for file in group])
+def base_psa(group_of_files, ignore_ids=[-1], ignore_sensors=[]):
+    suffixes = set([file.suffix.lower() for file in group_of_files])
     assert suffixes, "The group is empty!?"
     assert '.hex' in suffixes, f"The group {group_of_files[0].stem} has no .hex"
     assert '.xmlcon' in suffixes, f"The group {group_of_files[0].stem} has no .xmlcon"
 
     # TODO: Assert all CalcArrayItems requirements in XMLCON
-    xmlcon_file = Path(raw_data_folder, f"{name}.xmlcon")
+    xmlcon_file = [x for x in group_of_files if x.suffix.lower() == '.xmlcon'][0]
     xmlcon = ET.parse(xmlcon_file).getroot()
 
     with open(Path(base_path, 'data', 'CalcArray_default.yaml')) as yaml_file:
         defaults = yaml.safe_load(yaml_file)
     with open(Path(base_path, 'data', 'CalcArray_optional.yaml')) as yaml_file:
         requirements = yaml.safe_load(yaml_file)
-    calcArray = build_CalcArray(xmlcon, defaults, requirements, ignore_ids=ignore_ids)
+    calcArray = build_CalcArray(xmlcon, defaults, requirements, ignore_ids=ignore_ids, ignore_sensors=ignore_sensors)
     return xmlcon_file, calcArray
 
 def yaml_to_xml(yaml, parent = None):
@@ -82,8 +86,6 @@ def yaml_to_xml(yaml, parent = None):
         elif (isinstance(v, int) or isinstance(v, float)) and parent != None:
             parent.set(k, str(v))
     return elements
-
-base_path =  Path(Path(__file__).parent)
 
 def create_datcnv_psa(group_of_files, name, xmlcon):
     dc = ET.Element('Data_Conversion')
@@ -146,6 +148,28 @@ def create_filter_psa(group_of_files, name):
     main.write(psa_filename)
     return psa_filename
 
+def create_derive_psa(xmlcon_file, name):
+    xmlcon = ET.parse(xmlcon_file).getroot()
+    dc = ET.Element('Derive')
+    main = ET.ElementTree(dc)
+    root = main.getroot()
+    for file_ in ['psa_base.yaml', 'psa_derive.yaml']:
+        with open(Path(base_path, 'data', file_)) as yaml_file:
+            base = yaml.safe_load(yaml_file)
+        xml = yaml_to_xml(base)
+        root.extend(xml)
+    servername = root.find('ServerName')
+    servername.set('value', 'Data Conversion')  # not required
+    with open(Path(base_path, 'data', 'psa_derive_optional.yaml')) as yaml_file:
+        requirements = yaml.safe_load(yaml_file)
+    calcArray = build_CalcArray(xmlcon, [], requirements, ignore_ids=[], ignore_sensors=['FluoroWetlabECO_AFL_FL_Sensor', 'TurbidityMeter', 'Fluorometer', 'PAR_BiosphericalLicorChelseaSensor', 'FluoroWetlabCDOM_Sensor'])
+    root.extend([calcArray])
+    psa_filename = Path(base_path, 'data', 'psa_files', f'derive_{name}.psa')
+    ET.indent(main)  # requires python 3.9
+    main.write(psa_filename)
+    return psa_filename
+
+
 def create_sharktools_name(xmlcon_file, hexfile):
     #sbe09_{pressuresensor:04d}_{datetime.strfrmtime('%Y%m%d_%H%M')}_Ship(d2w2)_cruise_serno
     xmlcon = ET.parse(xmlcon_file).getroot()
@@ -174,7 +198,7 @@ def create_alignctd_psa(group_of_files, name):
     root.find('ServerName').set('value', 'Align CTD') # not required
     #Ignore id=3 (Pressure) because all the other values are aligned against it
     #If it would be set, SBE Processing complains about pressure not being in the file
-    xmlcon_file, CalcArray = base_psa(group_of_files, ignore_ids=[-1, 3])
+    xmlcon_file, CalcArray = base_psa(group_of_files, ignore_sensors = ['PressureSensor'])
     root.extend([CalcArray])
 
 
@@ -205,56 +229,59 @@ def create_alignctd_psa(group_of_files, name):
     main.write(psa_filename)
     return psa_filename
 
-# read in filenames of generic psa files as defined in psa_generic.yaml
-with open(Path(base_path, 'data', 'psa_generic.yaml'),'r') as yaml_file:
-    psa_filenames = yaml.safe_load(yaml_file)
 
-celltm_filename = Path(psa_filenames['psa_celltm'])
-loopedit_filename = Path(psa_filenames['psa_loopedit'])
-derive_filename = Path(psa_filenames['psa_derive'])
-binavg_filename = Path(psa_filenames['psa_binavg'])
+def build_ctd_processing():
+    # read in filenames of generic psa files as defined in psa_generic.yaml
+    with open(Path(base_path, 'data', 'psa_generic.yaml'),'r') as yaml_file:
+        psa_filenames = yaml.safe_load(yaml_file)
+
+    celltm_filename = Path(psa_filenames['psa_celltm'])
+    loopedit_filename = Path(psa_filenames['psa_loopedit'])
+    binavg_filename = Path(psa_filenames['psa_binavg'])
 
 
 
-with open('ctd_processing_psa.txt', 'w') as sbe_params:
-    raw_data_folder = Path(base_path, 'data', 'raw')
-    for path in raw_data_folder.glob('*.hex'):
-        name = path.stem
-        group = list(raw_data_folder.glob(f'{name}.*'))
-        xmlcon_file, psa_filename, sharktools_name, year = create_datcnv_psa(group, name, path)
-        output_dir = Path(base_path, 'data', 'output', year, 'cnv') #this stucture is required by sharktools
-        os.makedirs(output_dir, exist_ok=True)
-        sharktools_output = Path(output_dir, sharktools_name)
-        sbe_params.write(
-            f'''datcnv /p{psa_filename} /i{path} /c{xmlcon_file} /o{output_dir}\n'''
-        )
-        filter_filename = create_filter_psa(group, name)
-        sbe_params.write(
-            f'''filter /p{filter_filename} /i{sharktools_output} /o{output_dir}\n'''
-        )
-        alignctd_filename = create_alignctd_psa(group, name)
-        sbe_params.write(
-            f'''alignctd /p{alignctd_filename} /i{sharktools_output} /o{output_dir}\n'''
-        )
-        sbe_params.write(
-            f'''celltm /p{celltm_filename} /i{sharktools_output} /o{output_dir}\n'''
-        )
-        sbe_params.write(
-            f'''loopedit /p{loopedit_filename} /i{sharktools_output} /o{output_dir}\n'''
-        )
-        sbe_params.write(
-            f'''derive /p{derive_filename} /i{sharktools_output} /c{xmlcon_file} /o{output_dir}\n'''
-        )
-        sbe_params.write(
-            f'''binavg /p{binavg_filename} /i{sharktools_output} /o{output_dir}\n'''
-        )
+    with open('ctd_processing_psa.txt', 'w') as sbe_params:
+        raw_data_folder = Path(base_path, 'data', 'raw')
+        for path in raw_data_folder.glob('*.hex'):
+            name = path.stem
+            group = list(raw_data_folder.glob(f'{name}.*'))
+            xmlcon_file, psa_filename, sharktools_name, year = create_datcnv_psa(group, name, path)
+            output_dir = Path(base_path, 'data', 'output', year, 'cnv') #this stucture is required by sharktools
+            os.makedirs(output_dir, exist_ok=True)
+            sharktools_output = Path(output_dir, sharktools_name)
+            derive_filename = create_derive_psa(xmlcon_file, name)
+            sbe_params.write(
+                f'''datcnv /p{psa_filename} /i{path} /c{xmlcon_file} /o{output_dir}\n'''
+            )
+            filter_filename = create_filter_psa(group, name)
+            sbe_params.write(
+                f'''filter /p{filter_filename} /i{sharktools_output} /o{output_dir}\n'''
+            )
+            alignctd_filename = create_alignctd_psa(group, name)
+            sbe_params.write(
+                f'''alignctd /p{alignctd_filename} /i{sharktools_output} /o{output_dir}\n'''
+            )
+            sbe_params.write(
+                f'''celltm /p{celltm_filename} /i{sharktools_output} /o{output_dir}\n'''
+            )
+            sbe_params.write(
+                f'''loopedit /p{loopedit_filename} /i{sharktools_output} /o{output_dir}\n'''
+            )
+            sbe_params.write(
+                f'''derive /p{derive_filename} /i{sharktools_output} /c{xmlcon_file} /o{output_dir}\n'''
+            )
+            sbe_params.write(
+                f'''binavg /p{binavg_filename} /i{sharktools_output} /o{output_dir}\n'''
+            )
 
-# Output must be year/cnv
 
-import subprocess
-subprocess.call([
-    'sbebatch.exe',
-    base_path / "ctd_processing_psa.txt",
-    base_path / "data\output"
-])
+if __name__ == "__main__":
+    import subprocess
+    build_ctd_processing()
+    subprocess.call([
+        'sbebatch.exe',
+        base_path / "ctd_processing_psa.txt",
+        base_path / "data\output"
+    ])
 
