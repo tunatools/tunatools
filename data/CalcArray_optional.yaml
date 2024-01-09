@@ -11,6 +11,14 @@ FluoroWetlabECO_AFL_FL_Sensor:
     - FullName: Fluorescence, WET Labs ECO-AFL/FL [mg/m^3]
       UnitID: 38
       CalcID: 93
+FluoroWetlabCDOM_Sensor:
+    - FullName: Fluorescence, WET Labs CDOM [mg/m^3]
+      UnitID: 38
+      CalcID: 101
+Fluorometer:
+    - FullName: CDOM, Turner Cyclops [ppb QS]
+      UnitID: 72
+      CalcID: 157
 PAR_BiosphericalLicorChelseaSensor:
     - FullName: PAR/Irradiance, Biospherical/Licor
       UnitID: -1
@@ -18,6 +26,13 @@ PAR_BiosphericalLicorChelseaSensor:
       extra:
         PAR_Units:
             value: 0
+SPAR_Sensor:
+    - FullName: SPAR, Biospherical/Licor [umol photons/m^2/sec]
+      UnitID: -1
+      CalcID: 77
+      extra:
+        SPAR_Units:
+            value: 1
 
 AltimeterSensor:
     - FullName: Altimeter [m]
@@ -42,11 +57,5 @@ OxygenSensor:
       extra:
         ApplyHysteresisCorrection:
             value: 1
-Fluorometer:
-    - FullName: Fluorescence, WET Labs ECO-AFL/FL [mg/m^3]
-      UnitID: 38
-      CalcID: 93
-FluoroWetlabCDOM_Sensor:
-    - FullName: Fluorescence, WET Labs CDOM [mg/m^3]
-      UnitID: 38
-      CalcID: 101
+
+

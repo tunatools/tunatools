@@ -79,7 +79,7 @@ def build_CalcArray(xmlcon, defaults, extras, ignore_ids, ignore_sensors):
     return calc_array
 
 def calcArray_from_xmlcon(xmlcon_file, ignore_ids=[-1], ignore_sensors=[],
-                          default="CalcArray_default.yaml", optional="CalcArray_optional"):
+                          default="CalcArray_default.yaml", optional="CalcArray_optional.yaml"):
     xmlcon_xml = ET.parse(xmlcon_file).getroot()
     base_path = get_base_path()
     if default:
@@ -338,6 +338,7 @@ class SBE911_Measurement:
                                         'FluoroWetlabECO_AFL_FL_Sensor',
                                         'TurbidityMeter', 'Fluorometer',
                                         'PAR_BiosphericalLicorChelseaSensor',
+                                        'SPAR_Sensor',
                                         'FluoroWetlabCDOM_Sensor'])
         root = main.getroot()
         aca = ET.SubElement(root, 'ValArray')
