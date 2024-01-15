@@ -1,1 +1,1 @@
-from sharktools import SBE911_Measurement, SHARKTOOLS_Measurement
+from tunatools import SBE911_Measurement, SHARKTOOLS_Measurement

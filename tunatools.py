@@ -7,13 +7,14 @@ from pathlib import Path, WindowsPath
 import warnings
 import subprocess
 import shutil
-
+import sys
 
 def get_base_path() -> Path:
     return Path(Path(__file__).parent)
 
-
-def yaml_to_xml(yaml_object, parent=None) -> list[ET.Element]:
+# To maintain compatibility with older pythons we had to remove some hints
+# def yaml_to_xml(yaml_object, parent=None) -> list[ET.Element]:
+def yaml_to_xml(yaml_object, parent=None):
     elements = []
     for k, v in yaml_object.items():
         if isinstance(v, dict):
@@ -96,7 +97,8 @@ def calcArray_from_xmlcon(xmlcon_file, ignore_ids=[-1], ignore_sensors=[],
     return calcArray
 
 
-def build_base_psa(name:str, xmlcon_file: Path, base_config: list[str] = None,
+# def build_base_psa(name:str, xmlcon_file: Path, base_config: list[str] = None,
+def build_base_psa(name:str, xmlcon_file: Path, base_config=None,
                    ignore_ids=[-1], ignore_sensors=[],
                    default="CalcArray_default.yaml",
                    optional="CalcArray_optional.yaml"):
@@ -150,7 +152,6 @@ class SBE911_Measurement:
         for folder in [self.psa_folder, self.output_folder]:
             if not folder.is_dir():
                 os.makedirs(folder)
-
 
         if len(args) == 1:
             # AOM23-station-04-cast1 or Path(...)
@@ -249,8 +250,8 @@ class SBE911_Measurement:
 
             root.find('ServerName').set('value', 'Data Conversion')  # not required
             fix_lat_lon(root, coords)
-
-            ET.indent(main)  # requires python 3.9
+            if  sys.version_info >= (3, 9):
+                ET.indent(main)  # requires python 3.9
             main.write(psa_filename)
         self.psa_dict['datcnv'] = psa_filename
         return psa_filename
@@ -285,7 +286,8 @@ class SBE911_Measurement:
             ai.set('index', str(index))
             ai.set('value', str(value))
 
-        ET.indent(main)  # requires python 3.9
+        if sys.version_info >= (3, 9):
+            ET.indent(main)  # requires python 3.9
         main.write(psa_filename)
         self.psa_dict['filter'] = psa_filename
         return psa_filename
@@ -321,7 +323,8 @@ class SBE911_Measurement:
         aca.set('size', str(len(root.findall('.//CalcArrayItem'))))
 
         psa_filename = Path(self.psa_folder, f'alignctd_{self.hex.stem}.psa')
-        ET.indent(main)  # requires python 3.9
+        if sys.version_info >= (3, 9):
+            ET.indent(main)  # requires python 3.9
         main.write(psa_filename)
         self.psa_dict['alignctd'] = psa_filename
         return psa_filename
@@ -344,7 +347,8 @@ class SBE911_Measurement:
 
         root.find('ServerName').set('value', 'Data Conversion')  # not required
         psa_filename = Path(self.psa_folder, f'derive_{self.hex.stem}.psa')
-        ET.indent(main)  # requires python 3.9
+        if sys.version_info >= (3, 9):
+            ET.indent(main)  # requires python 3.9
         main.write(psa_filename)
         self.psa_dict['derive'] = psa_filename
         return psa_filename
@@ -433,6 +437,24 @@ class SHARKTOOLS_Measurement(SBE911_Measurement):
             os.makedirs(sharktools_name.parent)
         shutil.copyfile(cnv_name, sharktools_name)
 
+    # Sharktools will crash if the Licor sensor has no units (specially if there is no [] in the name)
+    def fix_units(self, destination_folder="data/output"):
+        sharktools_name = Path(destination_folder, self.build_sharktools_name())
+        if not sharktools_name.is_file():
+            raise FileNotFoundError("Have you created a sharktools conform named file?")
+        with open(sharktools_name, 'r') as sharktools_file:
+            data = sharktools_file.read()
+        with open(sharktools_name, 'w') as sharktools_file:
+            sharktools_file.write(data.replace('par: PAR/Irradiance, Biospherical/Licor', 'par: PAR/Irradiance, Biospherical/Licor [µE/(cm^2*s)]'))
+
+#    def just_do_stuff(self, force: bool = True,  destination_folder: str | Path="data/select_this_one_for_sharktools"):
+    def just_do_stuff(self, force: bool = True,  destination_folder="data/select_this_one_for_sharktools"):
+
+        self.create_all_psa(force=force)
+        self.create_sbe_batch_file(force=force)
+        self.run_batch()
+        self.rename(destination_folder)
+        self.fix_units(destination_folder)
 
 '''
 # Example usage
