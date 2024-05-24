@@ -1,0 +1,3 @@
+PyYAML
+PyQt6
+dateutils

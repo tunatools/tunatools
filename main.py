@@ -1,293 +1,287 @@
-import datetime
-import xml.etree.ElementTree as ET
-
 import os
-from pathlib import Path
-import yaml
+
+from PyQt6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QLabel,
+    QMainWindow,
+    QGridLayout,
+    QWidget,
+    QPushButton,
+    QFileDialog,
+    QPlainTextEdit,
+    QMessageBox,
+    QLineEdit,
+)
+from PyQt6.QtCore import QProcess, QCoreApplication
+from PyQt6.QtGui import QIcon, QDoubleValidator
+import pathlib
+import tunatools
+import sys
 import re
+import datetime
+import dateutil.parser
 
 
-base_path =  Path(Path(__file__).parent)
-input = Path(base_path, 'data', 'raw')
-output = Path(base_path, 'data', 'output')
-if not input.is_dir():
-    os.makedirs(input)
-if not output.is_dir():
-    os.makedirs(output)
+class GetCoordinates(QMainWindow):
+    def __init__(self, measurement):
+        super().__init__(parent=None)
+        self.setWindowTitle("Fixing missing coordinates")
 
-def insert_sensor(tree, sensor):
-    calc_array = tree.find('CalcArray')
-    array_size = int(calc_array.get('Size'))
-    calc_array.set('Size', str(array_size+1))
-    xml = ET.parse(sensor).getroot()
-    xml.set('index', str(array_size))
-    calc_array.extend([xml])
+        widget = QWidget()
+        # width, height
+        self.resize(300, 160)
+        layout = QGridLayout()
+        widget.setLayout(layout)
+        #self.setWindowIcon(QIcon(':/icons/icon'))
 
-def createCalcArrayItem(calcArray, object, Ordinal, index):
-    calcItems = 0
-    if type(object) is not list:
-        object = [object]
-    for x in range(Ordinal):
-        for obj in object:
-            calcArrayItem = ET.SubElement(calcArray, 'CalcArrayItem')
-            calcArrayItem.set('index', str(index+calcItems))
-            calcArrayItem.set('CalcID', str(obj['CalcID']))
-            calc = ET.SubElement(calcArrayItem, 'Calc')
-            calc.set('UnitID', str(obj['UnitID']))
-            calc.set('Ordinal', str(x))
-            fn = ET.SubElement(calc, 'FullName')
-            fullname = obj['FullName']
-            if x > 0:
-                fullname = re.sub(r'(.*) \[(.*)\]', fr'\1, {x+1} [\2]', fullname)
-            fn.set('value', fullname)
-            if 'extra' in obj.keys():
-                calc.extend(yaml_to_xml(obj['extra']))
-            calcItems += 1
-    return calcItems
+        self.lat = QLineEdit()
+        self.lat.setValidator(QDoubleValidator(-90., 90., 2))
 
-def build_CalcArray(xmlcon, defaults, extras, ignore_ids, ignore_sensors):
-    calcArray = ET.Element('CalcArray')
-    index = 0
-    sensor_types = [s.tag for s in xmlcon.findall('.//Sensor/*')]
-    for default in defaults:
-        # Filters and so on don't need these in their processing
-        if default['UnitID'] in ignore_ids:
-            continue
-        index += createCalcArrayItem(calcArray, default, 1, index)
-    for sensor in set(sensor_types):
-        if sensor in ignore_sensors + ["NotInUse"]:
-            continue
-        index += createCalcArrayItem(calcArray, extras[sensor], sensor_types.count(sensor), index)
-    calcArray.set('Size', str(index))
-    return calcArray
+        self.lon = QLineEdit()
+        self.lon.setValidator(QDoubleValidator(-180., 180., 2))
 
-def base_psa(group_of_files, ignore_ids=[-1], ignore_sensors=[]):
-    suffixes = set([file.suffix.lower() for file in group_of_files])
-    assert suffixes, "The group is empty!?"
-    assert '.hex' in suffixes, f"The group {group_of_files[0].stem} has no .hex"
-    assert '.xmlcon' in suffixes, f"The group {group_of_files[0].stem} has no .xmlcon"
+        layout.addWidget(QLabel('Your measurement {measurement.hex} is missing coordinates. If this should work with SHARKtools fix them here'), 0, 0, 1, 2)
 
-    # TODO: Assert all CalcArrayItems requirements in XMLCON
-    xmlcon_file = [x for x in group_of_files if x.suffix.lower() == '.xmlcon'][0]
-    xmlcon = ET.parse(xmlcon_file).getroot()
+        layout.addWidget(QLabel('lat (N/S)'), 1, 0)
+        layout.addWidget(QLabel('lon (E/W)'), 2, 0)
+        layout.addWidget(self.lat, 1, 1)
+        layout.addWidget(self.lon, 2, 1)
 
-    with open(Path(base_path, 'data', 'CalcArray_default.yaml')) as yaml_file:
-        defaults = yaml.safe_load(yaml_file)
-    with open(Path(base_path, 'data', 'CalcArray_optional.yaml')) as yaml_file:
-        requirements = yaml.safe_load(yaml_file)
-    calcArray = build_CalcArray(xmlcon, defaults, requirements, ignore_ids=ignore_ids, ignore_sensors=ignore_sensors)
-    return xmlcon_file, calcArray
+        continue_button = QPushButton('Continue')
+        continue_button.clicked.connect(self.parse_coords)
+        self.setCentralWidget(widget)
 
-def yaml_to_xml(yaml, parent = None):
-    elements = []
-    for k, v in yaml.items():
-        if isinstance(v, dict):
-            main = ET.Element(k)
-            el = yaml_to_xml(v, main)
-            main.extend(el)
-            elements.append(main)
-        #if no parent the attributes are ignored
-        elif isinstance(v, str) and parent != None:
-            parent.set(k, v)
-        elif (isinstance(v, int) or isinstance(v, float)) and parent != None:
-            parent.set(k, str(v))
-    return elements
-
-def create_datcnv_psa(group_of_files, name, xmlcon):
-    dc = ET.Element('Data_Conversion')
-    main = ET.ElementTree(dc)
-    root = main.getroot()
-    for file_ in ['psa_base.yaml', 'psa_datcnv.yaml']:
-        with open(Path(base_path, 'data', file_)) as yaml_file:
-            base = yaml.safe_load(yaml_file)
-        xml = yaml_to_xml(base)
-        root.extend(xml)
-    if '.bl' in set([file.suffix for file in group_of_files]):
-        products = root.find('CreateFile')
-        products.set('value', '2')
-    servername = root.find('ServerName')
-    servername.set('value', 'Data Conversion') # not required
-    xmlcon_file, CalcArray = base_psa(group_of_files, ignore_ids=[])
-    root.extend([CalcArray])
-    hexfile = {file.suffix: file for file in group_of_files}
-    sharktools_name, year = create_sharktools_name(xmlcon_file, hexfile['.hex'])
-    root.find('./OutputFile').set('value', sharktools_name)
-    psa_filename = Path(base_path, 'data', 'psa_files', f'dat_cnv_{name}.psa')
-    ET.indent(main) # requires python 3.9
-    main.write(psa_filename)
-    return xmlcon_file, psa_filename, sharktools_name, year
-
-def create_filter_psa(group_of_files, name):
-    dc = ET.Element('Filter')
-    main = ET.ElementTree(dc)
-    root = main.getroot()
-    with open(Path(base_path, 'data', 'psa_base.yaml')) as yaml_file:
-        base = yaml.safe_load(yaml_file)
-    xml = yaml_to_xml(base)
-    root.extend(xml)
-    root.find('ServerName').set('value', 'Filter') # not required
-    xmlcon_file, CalcArray = base_psa(group_of_files)
-    root.extend([CalcArray])
-
-    fta = ET.SubElement(root, 'FilterTypeArray')
-
-    # read in information from filter.yaml file and convert them to xml format
-    with open(Path(base_path, 'data', 'psa_filter.yaml')) as yaml_file:
-        filter = yaml.safe_load(yaml_file)
-    xml = yaml_to_xml(filter['extra'])
-    root.extend(xml)
-
-    for arrayelement in CalcArray:
-        index = arrayelement.get('index')
-        fullname = arrayelement.find('.//FullName')
-        # TODO: fix ,2
-        if fullname.get('value') in filter:
-            value = filter[fullname.get('value')]['value']
-        else:
-            value = 0
-        ai = ET.SubElement(fta, 'ArrayItem')
-        ai.set('index', str(index))
-        ai.set('value', str(value))
-
-    psa_filename = Path(base_path, 'data', 'psa_files', f'filter_{name}.psa')
-    ET.indent(main) # requires python 3.9
-    main.write(psa_filename)
-    return psa_filename
-
-def create_derive_psa(xmlcon_file, name):
-    xmlcon = ET.parse(xmlcon_file).getroot()
-    dc = ET.Element('Derive')
-    main = ET.ElementTree(dc)
-    root = main.getroot()
-    for file_ in ['psa_base.yaml', 'psa_derive.yaml']:
-        with open(Path(base_path, 'data', file_)) as yaml_file:
-            base = yaml.safe_load(yaml_file)
-        xml = yaml_to_xml(base)
-        root.extend(xml)
-    servername = root.find('ServerName')
-    servername.set('value', 'Data Conversion')  # not required
-    with open(Path(base_path, 'data', 'psa_derive_optional.yaml')) as yaml_file:
-        requirements = yaml.safe_load(yaml_file)
-    calcArray = build_CalcArray(xmlcon, [], requirements, ignore_ids=[], ignore_sensors=['FluoroWetlabECO_AFL_FL_Sensor', 'TurbidityMeter', 'Fluorometer', 'PAR_BiosphericalLicorChelseaSensor', 'FluoroWetlabCDOM_Sensor'])
-    root.extend([calcArray])
-    psa_filename = Path(base_path, 'data', 'psa_files', f'derive_{name}.psa')
-    ET.indent(main)  # requires python 3.9
-    main.write(psa_filename)
-    return psa_filename
+    def parse_coords(self):
+        try:
+            lat = float(self.lat.value)
+            lon = float(self.lon.value)
+        except ValueError:
+            pass
+        return lat, lon
 
 
-def create_sharktools_name(xmlcon_file, hexfile):
-    #sbe09_{pressuresensor:04d}_{datetime.strfrmtime('%Y%m%d_%H%M')}_Ship(d2w2)_cruise_serno
-    xmlcon = ET.parse(xmlcon_file).getroot()
-    pressure_sensor = xmlcon.find('.//PressureSensor/SerialNumber').text
-    assert pressure_sensor != ""
-    with open(hexfile, 'r') as hex:
-        hex_data = hex.read()
-        date = re.search('^\* System UTC = ([\w \d:]*)$', hex_data, re.M)
-        assert date
-        meassurement_start = datetime.datetime.strptime(date[1], '%b %d %Y %H:%M:%S')
-        meassurement_start_str = meassurement_start.strftime('%Y%m%d_%H%M')
-        #* System UTC = May 17 2023 10:50:11
-    with open(Path(base_path, 'data', 'expedition_specific.yaml'), 'r') as yaml_file:
-        extra_data = yaml.safe_load(yaml_file)
-    return f'sbe09_{pressure_sensor}_{meassurement_start_str}_{extra_data["ship_name"]}_{extra_data["cruise_number"]:02d}_0000.cnv', str(meassurement_start.year)
+# We overwrite the class to make coordinates fixable on the flight!
+class modified_Meassurement(tunatools.SHARKTOOLS_Measurement):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.shadow_hex()
+        self.shadow_xmlcon()
+
+    def shadow_hex(self) -> None:
+        """
+        SHARKtools crashes if there is no NMEA Latitude and Longitude.
+        So we offer the possibility to make a shadow file with a modified header.
+        This function fetches the shadow file if it exists and else allows for the creation.
+        """
+        with open(self.hex, 'r') as opened_hex_file:
+            hex_content = opened_hex_file.read()
+
+        # This assumes coordinates in the format 35 37.78 S. We don't know NMEA showing different data.
+        # In general maybe parsing should be outsourced.
+        lat = re.search(r'^\* NMEA Latitude = (\d{2}) ([\d\.]+) (\w)$',
+                        hex_content, re.M)
+        lon = re.search(r'^\* NMEA Longitude = (\d{3}) ([\d\.]+) (\w)$',
+                        hex_content, re.M)
+        lat_DD, lon_DD = None, None
+        if lat:
+            d, m, SN = lat.groups()
+            lat_DD = (-1 if SN == "S" else 1) * (int(d) + float(m) / 60.)
+        if lon:
+            d, m, EW = lon.groups()
+            lon_DD = (-1 if EW == "W" else 1) * (int(d) + float(m) / 60.)
+        if not lat_DD or not lon_DD:
+            shadow_folder = pathlib.Path(self.hex.parent, 'shadow')
+            if not shadow_folder.is_dir():
+                os.makedirs(shadow_folder)
+            shadow_file = pathlib.Path(shadow_folder, self.hex.name)
+            if shadow_file.is_file():
+                self.hex = shadow_file
+                return
+            coords = get_coords(self, lat_DD, lon_DD)
+            if coords:
+                lat_DD, lon_DD = coords
+                lat = f'* NMEA Latitude = {int(abs(lat_DD)):02d} {abs(lat_DD)%1*60:4.2f} {"N" if lat_DD>0 else "S"}'
+                lon = f'* NMEA Longitude = {int(abs(lon_DD)):03d} {abs(lon_DD)%1*60:4.2f} {"E" if lat_DD>0 else "W"}'
+                with open(shadow_file, 'w') as opened_hex_file:
+                    opened_hex_file.write(hex_content.replace('* NMEA UTC (Time)', f'{lat}\n{lon}\n* NMEA UTC (Time)'))
+                self.hex = shadow_file
+
+    def shadow_xmlcon(self) -> None:
+        """
+        SHARKtools crashes if the calibration date of an instrument is not in one of a few
+        predetermined formats, hence we create a shadow xmlcon with the fixed date.
+        This function fetches the shadow file if it exists and else creates it.
+        """
+        """
+        While we could directly use dateutil.parser.parse and reparse them to a format we're sure
+        SHARKtools recognizes, this would result in a ton of shadow files. So we go through the
+        formats SHARKtools uses and keep the file intact if everything would be understood.
+        """
+        formats_sharktools_understands = [
+            '%d%m%y',
+            '%d%m%Y',
+            '%d-%b-%y',
+            '%d-%b-%Y',
+            '%d %b %y',
+            '%d %b %Y'
+        ]
+        shadow = False
+        shadow_folder = pathlib.Path(self.xmlcon.parent, 'shadow')
+        shadow_file = pathlib.Path(shadow_folder, self.xmlcon.name)
+
+        with open(self.xmlcon, 'r') as opened_xmlcon_file:
+            xmlcon_content = opened_xmlcon_file.read()
+        dates = re.findall(r'<CalibrationDate>(.*?)</CalibrationDate>', xmlcon_content)
+        for date in dates:
+            if not date:
+                continue
+            try:
+                for format in formats_sharktools_understands:
+                    try:
+                        datetime.datetime.strptime(date, format)
+                    except ValueError:
+                        # try the next format if this one doesn't work
+                        continue
+                    else:
+                        # this means something worked so we can skip this date
+                        raise StopIteration
+            except StopIteration:
+                # continue with the next date
+                continue
+            else:
+                # None of the formats worked!
+                shadow = True
+                new_date = ''
+                try:
+                    #You can pick any of the formats. This is personal preference
+                    new_date = dateutil.parser.parse(date).strftime(formats_sharktools_understands[3])
+                except dateutil.parser.ParserError:
+                    # Even dateutil doesn't know what this is suposed to says...
+                    # So we're fine just removing it! (If this doesn't work we can make the date 01/01/1970
+                    pass
+                finally:
+                    xmlcon_content = xmlcon_content.replace(date, new_date)
+        if shadow:
+            if not shadow_folder.is_dir():
+                os.makedirs(shadow_folder)
+
+            old_content = None
+            if shadow_file.is_file():
+                with open(shadow_file, 'r') as opened_xmlcon_file:
+                    old_content = opened_xmlcon_file.read()
+            if old_content != xmlcon_content:
+                with open(shadow_file, 'w') as opened_xmlcon_file:
+                    opened_xmlcon_file.write(xmlcon_content)
+            self.xmlcon = shadow_file
 
 
-def create_alignctd_psa(group_of_files, name):
-    dc = ET.Element('Align_CTD')
-    main = ET.ElementTree(dc)
-    root = main.getroot()
-    with open(Path(base_path, 'data', 'psa_base.yaml')) as yaml_file:
-        base = yaml.safe_load(yaml_file)
-    xml = yaml_to_xml(base)
-    root.extend(xml)
-    root.find('ServerName').set('value', 'Align CTD') # not required
-    #Ignore id=3 (Pressure) because all the other values are aligned against it
-    #If it would be set, SBE Processing complains about pressure not being in the file
-    xmlcon_file, CalcArray = base_psa(group_of_files, ignore_sensors = ['PressureSensor'])
-    root.extend([CalcArray])
+def get_coords(measurement, lat=None, lon=None):
+    dialog = QDialog()
+    layout = QGridLayout()
+    dialog.setLayout(layout)
+
+    lat = QLineEdit(lat)
+    lat.setValidator(QDoubleValidator(-90., 90., 2))
+
+    lon = QLineEdit(lon)
+    lon.setValidator(QDoubleValidator(-180., 180., 2))
+
+    layout.addWidget(QLabel(
+        f'Your measurement {measurement.hex.name} is missing coordinates.\nIf this should work with SHARKtools fix them here'),
+                     0, 0, 1, 2)
+
+    layout.addWidget(QLabel('lat (N/S)'), 1, 0)
+    layout.addWidget(lat, 1, 1)
+
+    layout.addWidget(QLabel('lon (E/W)'), 2, 0)
+    layout.addWidget(lon, 2, 1)
+
+    continue_button = QPushButton('Continue')
+    layout.addWidget(continue_button, 3, 0, 1, 2)
+
+    continue_button.clicked.connect(dialog.close)
+    dialog.exec()
+    try:
+        lat_DD = float(lat.text())
+    except ValueError:
+        return None
+    try:
+        lon_DD = float(lon.text())
+    except ValueError:
+        return None
+    return lat_DD, lon_DD
 
 
-    aca = ET.SubElement(root, 'ValArray')
+class Window(QMainWindow):
+    def __init__(self):
+        super().__init__(parent=None)
+        self.setWindowTitle("PSA Creator")
 
-    with open(Path(base_path, 'data', 'psa_alignctd.yaml')) as yaml_file:
-        alignctd = yaml.safe_load(yaml_file)
-    #xml = yaml_to_xml(alignctd['extra'])
-    #root.extend(xml)
+        widget = QWidget()
+        # width, height
+        self.resize(300, 160)
+        layout = QGridLayout()
+        widget.setLayout(layout)
 
-    for arrayelement in CalcArray:
-        index = arrayelement.get('index')
-        fullname = arrayelement.find('.//FullName')
+        single_file = QPushButton('Process a file')
+        folder = QPushButton('Process a folder')
 
-        if fullname.get('value') in alignctd:
-            value = alignctd[fullname.get('value')]['value']
-        else:
-            value = 0
-        ai = ET.SubElement(aca, 'ValArrayItem')
-        ai.set('index', str(index))
-        ai.set('value', str(value))
-        ai.set('variable_name', str(fullname.text))
+        layout.addWidget(single_file, 0, 0)
+        layout.addWidget(folder, 1, 0)
 
-    aca.set('size', str(len(CalcArray)))
-
-    psa_filename = Path(base_path, 'data', 'psa_files', f'alignctd_{name}.psa')
-    ET.indent(main) # requires python 3.9
-    main.write(psa_filename)
-    return psa_filename
+        # single_file.clicked.connect(self.select_file)
+        folder.clicked.connect(self.select_folder)
+        self.setCentralWidget(widget)
 
 
-def build_ctd_processing():
-    # read in filenames of generic psa files as defined in psa_generic.yaml
-    with open(Path(base_path, 'data', 'psa_generic.yaml'),'r') as yaml_file:
-        psa_filenames = yaml.safe_load(yaml_file)
+    def select_folder(self):
+        self.directory = QFileDialog.getExistingDirectory(self, 'Select Folder')
+        if self.directory:
+            widget = QWidget()
+            layout = QGridLayout()
+            widget.setLayout(layout)
 
-    celltm_filename = Path(psa_filenames['psa_celltm'])
-    loopedit_filename = Path(psa_filenames['psa_loopedit'])
-    binavg_filename = Path(psa_filenames['psa_binavg'])
+            layout.addWidget(QLabel('Found the following files:'), 0, 0)
+            venv_box = QPlainTextEdit()
+            venv_box.setReadOnly(True)
+            layout.addWidget(venv_box, 1, 0)
+            self.continue_button = QPushButton('Continue', enabled = False)
+            layout.addWidget(self.continue_button, 2, 0)
+            
 
+            self.setCentralWidget(widget)
+            QCoreApplication.processEvents()
 
+            self.measurements = []
+            for file in pathlib.Path(self.directory).glob('*.hex'):
+                try:
+                    sm = modified_Meassurement(file, source_folder=file.parent)
+                except AssertionError as e:
+                    venv_box.appendPlainText(f'{file} failed with error: {e}')
+                else:
+                    self.measurements.append(sm)
+                    venv_box.appendPlainText(f'{sm.hex.name} with xmlcon{"+bl" if getattr(sm, "bl", None) else ""}')
+            self.continue_button.setText(f'Continue with {len(self.measurements)} files')
+            self.continue_button.setEnabled(True)
+            self.continue_button.clicked.connect(self.process)
 
-    with open('ctd_processing_psa.txt', 'w') as sbe_params:
-        raw_data_folder = Path(base_path, 'data', 'raw')
-        for path in raw_data_folder.glob('*.hex'):
-            name = path.stem
-            group = list(raw_data_folder.glob(f'{name}.*'))
-            xmlcon_file, psa_filename, sharktools_name, year = create_datcnv_psa(group, name, path)
-            output_dir = Path(base_path, 'data', 'output', year, 'cnv') #this stucture is required by sharktools
-            os.makedirs(output_dir, exist_ok=True)
-            sharktools_output = Path(output_dir, sharktools_name)
-            derive_filename = create_derive_psa(xmlcon_file, name)
-            sbe_params.write(
-                f'''datcnv /p{psa_filename} /i{path} /c{xmlcon_file} /o{output_dir}\n'''
-            )
-            filter_filename = create_filter_psa(group, name)
-            sbe_params.write(
-                f'''filter /p{filter_filename} /i{sharktools_output} /o{output_dir}\n'''
-            )
-            alignctd_filename = create_alignctd_psa(group, name)
-            sbe_params.write(
-                f'''alignctd /p{alignctd_filename} /i{sharktools_output} /o{output_dir}\n'''
-            )
-            sbe_params.write(
-                f'''celltm /p{celltm_filename} /i{sharktools_output} /o{output_dir}\n'''
-            )
-            sbe_params.write(
-                f'''loopedit /p{loopedit_filename} /i{sharktools_output} /o{output_dir}\n'''
-            )
-            sbe_params.write(
-                f'''derive /p{derive_filename} /i{sharktools_output} /c{xmlcon_file} /o{output_dir}\n'''
-            )
-            sbe_params.write(
-                f'''binavg /p{binavg_filename} /i{sharktools_output} /o{output_dir}\n'''
-            )
+    def process(self):
+        # paralellisation(?)
+        for measurement in self.measurements:
+            measurement.create_all_psa(force=True)
+            measurement.create_sbe_batch_file(force=True)
+            measurement.just_do_stuff()
+        self.continue_button.setText('Done!')
+        self.continue_button.clicked.disconnect()
+        self.continue_button.clicked.connect(QApplication.instance().quit)
 
 
-if __name__ == "__main__":
-    import subprocess
-    build_ctd_processing()
-    subprocess.call([
-        'sbebatch.exe',
-        base_path / "ctd_processing_psa.txt",
-        base_path / "data\output"
-    ])
+app = QApplication([])
+window = Window()
+window.show()
+sys.exit(app.exec())
+
+
+
 
