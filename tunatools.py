@@ -284,7 +284,7 @@ class SBE911_Measurement:
             fta = ET.SubElement(root, 'FilterTypeArray')
 
             # read in information from filter.yaml file and convert them to xml format
-            with open(Path(self.psa_folder, 'psa_filter.yaml')) as yaml_file:
+            with open(Path(get_base_path(), 'data', 'psa_filter.yaml')) as yaml_file:
                 filter = yaml.safe_load(yaml_file)
             xml = yaml_to_xml(filter['extra'])
             root.extend(xml)

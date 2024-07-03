@@ -327,7 +327,7 @@ class Window(QMainWindow):
 def run(measurement):
     measurement.create_all_psa()
     measurement.create_sbe_batch_file()
-    # measurement.run_batch()
+    measurement.run_batch()
 
 
 app = QApplication([])
