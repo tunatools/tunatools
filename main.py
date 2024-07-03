@@ -21,6 +21,7 @@ import sys
 import re
 import datetime
 import dateutil.parser
+from multiprocessing import Pool
 
 
 class GetCoordinates(QMainWindow):
@@ -61,8 +62,8 @@ class GetCoordinates(QMainWindow):
         return lat, lon
 
 
-# We overwrite the class to make coordinates fixable on the flight!
-class modified_Meassurement(tunatools.SHARKTOOLS_Measurement):
+class modified_Measurement(tunatools.SHARKTOOLS_Measurement):
+    """An SBE911 Measurement with some overwrites to the class to make coordinates fixable on the flight!"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.shadow_hex()
@@ -70,8 +71,8 @@ class modified_Meassurement(tunatools.SHARKTOOLS_Measurement):
 
     def shadow_hex(self) -> None:
         """
-        SHARKtools crashes if there is no NMEA Latitude and Longitude.
-        So we offer the possibility to make a shadow file with a modified header.
+        SHARKtools crashes if there is no NMEA Latitude and Longitude.\n
+        So we offer the possibility to make a shadow file with a modified header.\n
         This function fetches the shadow file if it exists and else allows for the creation.
         """
         with open(self.hex, 'r') as opened_hex_file:
@@ -177,6 +178,7 @@ class modified_Meassurement(tunatools.SHARKTOOLS_Measurement):
 
 
 def get_coords(measurement, lat=None, lon=None):
+    """A pop up for the user to input coordinates"""
     dialog = QDialog()
     layout = QGridLayout()
     dialog.setLayout(layout)
@@ -230,10 +232,9 @@ class Window(QMainWindow):
         layout.addWidget(single_file, 0, 0)
         layout.addWidget(folder, 1, 0)
 
-        # single_file.clicked.connect(self.select_file)
+        single_file.clicked.connect(self.select_file)
         folder.clicked.connect(self.select_folder)
         self.setCentralWidget(widget)
-
 
     def select_folder(self):
         self.directory = QFileDialog.getExistingDirectory(self, 'Select Folder')
@@ -246,9 +247,8 @@ class Window(QMainWindow):
             venv_box = QPlainTextEdit()
             venv_box.setReadOnly(True)
             layout.addWidget(venv_box, 1, 0)
-            self.continue_button = QPushButton('Continue', enabled = False)
+            self.continue_button = QPushButton('Continue', enabled=False)
             layout.addWidget(self.continue_button, 2, 0)
-            
 
             self.setCentralWidget(widget)
             QCoreApplication.processEvents()
@@ -256,7 +256,7 @@ class Window(QMainWindow):
             self.measurements = []
             for file in pathlib.Path(self.directory).glob('*.hex'):
                 try:
-                    sm = modified_Meassurement(file, source_folder=file.parent)
+                    sm = modified_Measurement(file, source_folder=file.parent)
                 except AssertionError as e:
                     venv_box.appendPlainText(f'{file} failed with error: {e}')
                 else:
@@ -266,15 +266,68 @@ class Window(QMainWindow):
             self.continue_button.setEnabled(True)
             self.continue_button.clicked.connect(self.process)
 
+    def get_a_file(self, filter=None):
+        a_file = QFileDialog.getOpenFileName(self, 'Select a hexfile', filter=filter)
+        if a_file:
+            return a_file[0]
+        else:
+            return None
+    def select_file(self):
+        self.hex = self.get_a_file("*.hex")
+        if self.hex:
+            measurement = modified_Measurement(self.hex)
+
+            widget = QWidget()
+            layout = QGridLayout()
+            widget.setLayout(layout)
+            layout.addWidget(QLabel('hexfile'), 0, 0)
+            layout.addWidget(QLabel(str(measurement.hex)), 0, 1)
+            layout.addWidget(QLabel('XMLCON'), 1, 0)
+            layout.addWidget(QLabel(str(measurement.xmlcon)), 1, 1)
+            continue_button = QPushButton('Continue')
+            layout.addWidget(continue_button, 2, 0, 1, 2)
+            self.setCentralWidget(widget)
+        '''
+        if self.directory:
+            widget = QWidget()
+            layout = QGridLayout()
+            widget.setLayout(layout)
+
+            layout.addWidget(QLabel('Found the following files:'), 0, 0)
+            venv_box = QPlainTextEdit()
+            venv_box.setReadOnly(True)
+            layout.addWidget(venv_box, 1, 0)
+            self.continue_button = QPushButton('Continue', enabled=False)
+            layout.addWidget(self.continue_button, 2, 0)
+
+            self.setCentralWidget(widget)
+            QCoreApplication.processEvents()
+
+            self.measurements = []
+            for file in pathlib.Path(self.directory).glob('*.hex'):
+                try:
+                    sm = modified_Measurement(file, source_folder=file.parent)
+                except AssertionError as e:
+                    venv_box.appendPlainText(f'{file} failed with error: {e}')
+                else:
+                    self.measurements.append(sm)
+                    venv_box.appendPlainText(f'{sm.hex.name} with xmlcon{"+bl" if getattr(sm, "bl", None) else ""}')
+            self.continue_button.setText(f'Continue with {len(self.measurements)} files')
+            self.continue_button.setEnabled(True)
+            self.continue_button.clicked.connect(self.process)
+        '''
+
+
     def process(self):
-        # paralellisation(?)
-        for measurement in self.measurements:
-            measurement.create_all_psa(force=True)
-            measurement.create_sbe_batch_file(force=True)
-            measurement.just_do_stuff()
+        map(run, self.measurements)
         self.continue_button.setText('Done!')
         self.continue_button.clicked.disconnect()
         self.continue_button.clicked.connect(QApplication.instance().quit)
+
+def run(measurement):
+    measurement.create_all_psa()
+    measurement.create_sbe_batch_file()
+    # measurement.run_batch()
 
 
 app = QApplication([])

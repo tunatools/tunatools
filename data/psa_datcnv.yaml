@@ -41,7 +41,7 @@ MiscellaneousDataForCalculations:
 InstrumentPath:
   value: ""
 InstrumentMatch:
-  value: "1"
+  value: "0" # Else it will ignore the submitted xmlcon and try to match the hex name
 
 ProcessScansToEnd:
   value: "1"

@@ -1,1 +1,6 @@
-from tunatools import SBE911_Measurement, SHARKTOOLS_Measurement
+import sys
+
+if __name__ == "__main__":
+    print ('main')
+else:
+    print('import')
