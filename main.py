@@ -319,7 +319,8 @@ class Window(QMainWindow):
 
 
     def process(self):
-        map(run, self.measurements)
+        for ms in self.measurements:
+            run(self.measurements)
         self.continue_button.setText('Done!')
         self.continue_button.clicked.disconnect()
         self.continue_button.clicked.connect(QApplication.instance().quit)
