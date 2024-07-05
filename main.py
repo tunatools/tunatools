@@ -320,7 +320,7 @@ class Window(QMainWindow):
 
     def process(self):
         for ms in self.measurements:
-            run(self.measurements)
+            run(ms)
         self.continue_button.setText('Done!')
         self.continue_button.clicked.disconnect()
         self.continue_button.clicked.connect(QApplication.instance().quit)
