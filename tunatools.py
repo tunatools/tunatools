@@ -154,6 +154,7 @@ class SBE911_Measurement:
         At least a xmlcon and hex file are required to do any processing (as dict, list, attributes).
         If only one of these is provided it is assumed that the other one shares the stem.
         """
+        # Bottle files must share the same stem as the hex file!
         self.xmlcon = None
         self.hex = None
         self.bl = None
@@ -460,7 +461,7 @@ class SBE911_Measurement:
         if force or not batch_name.is_file():
             require_xmlcon = ['datcnv', 'derive', 'bottlesum']
             input_ending = {
-                "bottle_sum": ".ros"
+                "bottlesum": ".ros"
             }
             with open(batch_name, 'w') as sbe_params:
                 for name, file in self.psa_dict.items():
