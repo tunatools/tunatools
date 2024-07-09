@@ -1,0 +1,8 @@
+ApplyTauCorrection:
+  value: "1"
+OutputMinMaxValues:
+  value: "1"
+InstrumentPath:
+  value: ""
+InstrumentMatch:
+  value: "0" # 1 causes SBE to look for the .xmlcon in the cnv folder!
