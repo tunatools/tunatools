@@ -227,7 +227,7 @@ def get_coords(measurement, lat=None, lon=None):
 class Window(QMainWindow):
     def __init__(self):
         super().__init__(parent=None)
-        self.setWindowTitle("PSA Creator")
+        self.setWindowTitle("Tunatools")
 
         widget = QWidget()
         # width, height
@@ -276,55 +276,74 @@ class Window(QMainWindow):
             self.continue_button.clicked.connect(self.process)
 
     def get_a_file(self, filter=None):
-        a_file = QFileDialog.getOpenFileName(self, 'Select a hexfile', filter=filter)
+        title_dict = {
+            '*.hex': 'Select a hex file',
+            '*.xmlcon': 'Select a xmlcom file'
+        }
+        title = title_dict.get(filter, 'Select a file')
+        a_file = QFileDialog.getOpenFileName(self, title, filter=filter)
         if a_file:
             return a_file[0]
         else:
             return None
-    def select_file(self):
-        self.hex = self.get_a_file("*.hex")
+
+    def get_hexfile(self, _):
+        a_file = self.get_a_file('*.hex')
+        if a_file:
+            self.hex = pathlib.Path(a_file)
+            if not self.xmlcon and self.hex.with_suffix('.xmlcon').is_file():
+                self.xmlcon = self.hex.with_suffix('.xmlcon')
+            self.set_labels()
+
+    def get_xmlconfile(self, _):
+        a_file = self.get_a_file('*.xmlcon')
+        if a_file:
+            self.xmlcon = pathlib.Path(a_file)
+            if not self.hex and self.xmlcon.with_suffix('.hex').is_file():
+                self.hex = self.xmlcon.with_suffix('.hex')
+            self.set_labels()
+
+
+    def set_labels(self):
+        if self.xmlcon:
+            self.xmlcomfile.setText(str(self.xmlcon))
         if self.hex:
-            measurement = modified_Measurement(self.hex)
-
-            widget = QWidget()
-            layout = QGridLayout()
-            widget.setLayout(layout)
-            layout.addWidget(QLabel('hexfile'), 0, 0)
-            layout.addWidget(QLabel(str(measurement.hex)), 0, 1)
-            layout.addWidget(QLabel('XMLCON'), 1, 0)
-            layout.addWidget(QLabel(str(measurement.xmlcon)), 1, 1)
-            continue_button = QPushButton('Continue')
-            layout.addWidget(continue_button, 2, 0, 1, 2)
-            self.setCentralWidget(widget)
-        '''
-        if self.directory:
-            widget = QWidget()
-            layout = QGridLayout()
-            widget.setLayout(layout)
-
-            layout.addWidget(QLabel('Found the following files:'), 0, 0)
-            venv_box = QPlainTextEdit()
-            venv_box.setReadOnly(True)
-            layout.addWidget(venv_box, 1, 0)
-            self.continue_button = QPushButton('Continue', enabled=False)
-            layout.addWidget(self.continue_button, 2, 0)
-
-            self.setCentralWidget(widget)
-            QCoreApplication.processEvents()
-
-            self.measurements = []
-            for file in pathlib.Path(self.directory).glob('*.hex'):
-                try:
-                    sm = modified_Measurement(file, source_folder=file.parent)
-                except AssertionError as e:
-                    venv_box.appendPlainText(f'{file} failed with error: {e}')
-                else:
-                    self.measurements.append(sm)
-                    venv_box.appendPlainText(f'{sm.hex.name} with xmlcon{"+bl" if getattr(sm, "bl", None) else ""}')
-            self.continue_button.setText(f'Continue with {len(self.measurements)} files')
+            self.hexfile.setText(str(self.hex))
+        if self.xmlcon and self.hex:
             self.continue_button.setEnabled(True)
-            self.continue_button.clicked.connect(self.process)
-        '''
+        else:
+            self.continue_button.setEnabled(False)
+
+    def select_file(self):
+        self.hex = None
+        self.xmlcon = None
+
+        widget = QWidget()
+        layout = QGridLayout()
+        widget.setLayout(layout)
+
+        self.hexfile = QLabel('Click to set a hex file')
+        self.hexfile.mousePressEvent = self.get_hexfile
+
+        self.xmlcomfile = QLabel('Click to set a xmlcon file')
+        self.xmlcomfile.mousePressEvent = self.get_xmlconfile
+
+        layout.addWidget(QLabel('HEX'), 0, 0)
+        layout.addWidget(self.hexfile, 0, 1)
+        layout.addWidget(QLabel('XMLCON'), 1, 0)
+        layout.addWidget(self.xmlcomfile, 1, 1)
+        self.continue_button = QPushButton('Continue', enabled=False)
+        layout.addWidget(self.continue_button, 2, 0, 1, 2)
+        self.setCentralWidget(widget)
+        self.continue_button.clicked.connect(self.process_single)
+
+    def process_single(self):
+        assert self.hex.is_file() and self.xmlcon.is_file(), 'No valid xmlcon and hex'
+        measurement = modified_Measurement({'hex': self.hex, 'xmlcon': self.xmlcon})
+        potential_bottle_file = self.hex.with_suffix('.bl')
+        if potential_bottle_file.is_file():
+            measurement.bl = potential_bottle_file
+        measurement.just_do_stuff(force=True)
 
 
     def process(self):
