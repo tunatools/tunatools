@@ -105,8 +105,17 @@ class modified_Measurement(tunatools.SHARKTOOLS_Measurement):
                 lat = f'* NMEA Latitude = {int(abs(lat_DD)):02d} {abs(lat_DD)%1*60:4.2f} {"N" if lat_DD>0 else "S"}'
                 lon = f'* NMEA Longitude = {int(abs(lon_DD)):03d} {abs(lon_DD)%1*60:4.2f} {"E" if lat_DD>0 else "W"}'
                 with open(shadow_file, 'w') as opened_hex_file:
+                    # This assumes there is NMEA time. This seems to not always be the case
                     opened_hex_file.write(hex_content.replace('* NMEA UTC (Time)', f'{lat}\n{lon}\n* NMEA UTC (Time)'))
                 self.hex = shadow_file
+                if self.bl:
+                    # Copying should be better...
+                    shadow_bl_file = pathlib.Path(shadow_folder, self.bl.name)
+                    with open(shadow_bl_file) as opened_shadow_bl_file:
+                        with open(self.bl, 'r') as bl_file:
+                            opened_shadow_bl_file.write(bl_file.read())
+                    self.bl = shadow_bl_file
+
 
     def shadow_xmlcon(self) -> None:
         """
@@ -320,16 +329,10 @@ class Window(QMainWindow):
 
     def process(self):
         for ms in self.measurements:
-            run(ms)
+            ms.just_do_stuff(force=True)
         self.continue_button.setText('Done!')
         self.continue_button.clicked.disconnect()
         self.continue_button.clicked.connect(QApplication.instance().quit)
-
-def run(measurement):
-    measurement.create_all_psa()
-    measurement.create_sbe_batch_file()
-    measurement.run_batch()
-
 
 app = QApplication([])
 window = Window()

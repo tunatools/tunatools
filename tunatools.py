@@ -33,7 +33,6 @@ def yaml_to_xml(yaml_object, parent=None):
             parent.set(k, str(v))
     return elements
 
-
 def createCalcArrayItem(calc_array, sensor_dependant_items, amount=1, index=0):
     """Creates 'amount' entries of CalcArrayItems of the type 'sensor_dependant_items'.
     Takes care of upticking the index and ordinal. That is to produce SBE Oxygen 2,[]
@@ -89,12 +88,12 @@ def calcArray_from_xmlcon(xmlcon_file: Path, ignore_ids=[-1], ignore_sensors: li
     xmlcon_xml = ET.parse(xmlcon_file).getroot()
     base_path = get_base_path()
     if default:
-        with open(Path(base_path, 'data', default)) as yaml_file:
+        with open(Path(base_path, 'config', default)) as yaml_file:
             defaults = yaml.safe_load(yaml_file)
     else:
         defaults = []
     if optional:
-        with open(Path(base_path, 'data', optional)) as yaml_file:
+        with open(Path(base_path, 'config', optional)) as yaml_file:
             requirements = yaml.safe_load(yaml_file)
     else:
         requirements = []
@@ -113,7 +112,7 @@ def build_base_psa(name: str, xmlcon_file: Path, base_config=None,
     main = ET.ElementTree(main_element)
     root = main.getroot()
     for config_file in base_config:
-        with open(Path(base_path, 'data', config_file)) as yaml_file:
+        with open(Path(base_path, 'config', config_file)) as yaml_file:
             base = yaml.safe_load(yaml_file)
         xml = yaml_to_xml(base)
         root.extend(xml)
@@ -125,12 +124,11 @@ def build_base_psa(name: str, xmlcon_file: Path, base_config=None,
 
 
 def fix_lat_lon(et_tree: ET, coords: (float, float)):
-    '''Sets the latitude and longitude in the tree to the tuple provided.'''
+    """Sets the latitude and longitude in the tree to the tuple provided."""
     if coords:
-        coords = map(str, coords)
         lat, lon = coords
-        et_tree.find('.//Latitude').set('value', lat)
-        et_tree.find('.//Longitude').set('value', lon)
+        et_tree.find('.//Latitude').set('value', f'{lat:.3f}')
+        et_tree.find('.//Longitude').set('value', f'{lon:.3f}')
 
 
 def is_windows_path(obj) -> bool:
@@ -138,6 +136,16 @@ def is_windows_path(obj) -> bool:
     # PosixPath is here because my Windows decided not to boot and now I'm developing on Linux
     return type(obj) in [Path, WindowsPath, PosixPath]
 
+
+def valid_bl_file(path: Path) -> bool:
+    """Seasave may produce a .bl file with no data. As this would result in no .ros file, bottlesummary will fail.
+    Thus, we should remove the bottle file if it is 'empty'"""
+    with open(path, 'r') as bottle_file:
+        # The file has 2 header lines and an ending new line
+        if len(bottle_file.readlines()) < 4:
+            return False
+        else:
+            return True
 
 class SBE911_Measurement:
     def __init__(self, *args, **kwargs):
@@ -152,8 +160,9 @@ class SBE911_Measurement:
         self.psa_dict = dict()
 
         self.source_folder = Path(kwargs.get('source_folder', 'data/raw'))
-        self.psa_folder = Path(kwargs.get('psa_folder', 'data/psa_files'))
         self.output_folder = Path(kwargs.get('output_folder', 'data/output'))
+        self.psa_folder = Path(kwargs.get('psa_folder', 'data/psa_files'))
+        self.generic_psa_folder = Path(kwargs.get('generic_psa_folder', 'config/generic_psa_files'))
 
         # Make everything absolute paths
         for folder in ['source_folder', 'psa_folder', 'output_folder']:
@@ -225,6 +234,9 @@ class SBE911_Measurement:
             if getattr(self, file) and not getattr(self, file).is_absolute():
                 setattr(self, file, Path(self.source_folder, getattr(self, file)))
 
+        if self.bl and not valid_bl_file(self.bl):
+            self.bl = None
+
     def parse_lat_lon(self) -> (float, float):
         """Parses the hexfile and looks for NMEA coordinates. Parses them from degrees
         and decimal minutes (DD) to degrees."""
@@ -244,9 +256,9 @@ class SBE911_Measurement:
         lon_DD = (-1 if EW == "W" else 1) * (int(d) + float(m) / 60.)
         return lat_DD, lon_DD
 
-    def create_datcnv_psa(self, force: bool = False) -> Path:
+    def create_datcnv_psa(self, force: bool = False, include_upcast=False) -> Path:
         psa_filename = Path(self.psa_folder,
-                            f'dat_cnv_{self.hex.stem+".psa"}')
+                            f'dat_cnv_{self.hex.stem}{"_u" if include_upcast else ''}.psa')
         if force or not psa_filename.is_file():
             coords = self.parse_lat_lon()
             ignore_ids = []
@@ -261,9 +273,12 @@ class SBE911_Measurement:
                 products = root.find('CreateFile')
                 products.set('value', '2')
 
-            root.find('ServerName').set('value', 'Data Conversion')  # not required
+            # The ServerName is technically not required, but building a PSA with SBEProcessing creates it.
+            root.find('ServerName').set('value', 'Data Conversion')
+            if include_upcast:
+                root.find('FromCast').set('value', '0')
             fix_lat_lon(root, coords)
-            # For backward compatibility (SHARKtools ran only on python 3.8)
+            # For backward compatibility (SHARKtools used to run only on Python 3.8)
             if sys.version_info >= (3, 9):
                 ET.indent(main)
             main.write(psa_filename)
@@ -271,7 +286,7 @@ class SBE911_Measurement:
         return psa_filename
 
     def create_filter_psa(self, force=False) -> Path:
-        psa_filename = Path(self.psa_folder, f'filter_{self.hex.stem+".psa"}')
+        psa_filename = Path(self.psa_folder, f'filter_{self.hex.stem}.psa')
         if force or not psa_filename.is_file():
             coords = self.parse_lat_lon()
             ignore_ids = [-1]
@@ -283,8 +298,8 @@ class SBE911_Measurement:
 
             fta = ET.SubElement(root, 'FilterTypeArray')
 
-            # read in information from filter.yaml file and convert them to xml format
-            with open(Path(get_base_path(), 'data', 'psa_filter.yaml')) as yaml_file:
+            # Read in information from filter.yaml file and convert them to xml format
+            with open(Path(get_base_path(), 'config', 'psa_filter.yaml')) as yaml_file:
                 filter = yaml.safe_load(yaml_file)
             xml = yaml_to_xml(filter['extra'])
             root.extend(xml)
@@ -320,7 +335,7 @@ class SBE911_Measurement:
             root = main.getroot()
             aca = ET.SubElement(root, 'ValArray')
 
-            with open(Path(get_base_path(), 'data', 'psa_alignctd.yaml')) as yaml_file:
+            with open(Path(get_base_path(), 'config', 'psa_alignctd.yaml')) as yaml_file:
                 alignctd = yaml.safe_load(yaml_file)
 
             for arrayelement in root.findall('.//CalcArrayItem'):
@@ -370,17 +385,17 @@ class SBE911_Measurement:
         return psa_filename
 
     def create_celltm_psa(self):
-        psa_filename = Path(self.psa_folder, 'celltm_generic.psa')
+        psa_filename = Path(self.generic_psa_folder, 'celltm_generic.psa')
         self.psa_dict['celltm'] = psa_filename
         return psa_filename
 
     def create_binavg_psa(self):
-        psa_filename = Path(self.psa_folder, 'binavg_generic.psa')
+        psa_filename = Path(self.generic_psa_folder, 'binavg_generic.psa')
         self.psa_dict['binavg'] = psa_filename
         return psa_filename
 
     def create_loopedit_psa(self):
-        psa_filename = Path(self.psa_folder, 'loopedit_generic.psa')
+        psa_filename = Path(self.generic_psa_folder, 'loopedit_generic.psa')
         self.psa_dict['loopedit'] = psa_filename
         return psa_filename
 
@@ -435,19 +450,25 @@ class SBE911_Measurement:
         self.create_loopedit_psa()
         self.create_derive_psa(force)
         self.create_binavg_psa()
-        if self.bl:
-            self.create_bottlesum_psa(force)
 
-    def create_sbe_batch_file(self, force: bool = False):
-        batch_name = Path(self.psa_folder, f'batch_{self.hex.stem+".txt"}')
+    def create_btl_files(self, force=False):
+        self.create_datcnv_psa(force=force, include_upcast=True)
+        self.create_bottlesum_psa(force)
+
+    def create_sbe_batch_file(self, force: bool = False, append: str = ''):
+        batch_name = Path(self.psa_folder, f'batch_{self.hex.stem}{append}.txt')
         if force or not batch_name.is_file():
-            require_xmlcon = ['datcnv', 'derive']
+            require_xmlcon = ['datcnv', 'derive', 'bottlesum']
+            input_ending = {
+                "bottle_sum": ".ros"
+            }
             with open(batch_name, 'w') as sbe_params:
                 for name, file in self.psa_dict.items():
                     sbe_params.write(
                         f'{name} /p{file} /o{self.output_folder}' +
                         (f' /c{self.xmlcon}' if name in require_xmlcon else '') +
-                        f' /i{self.hex if name=="datcnv" else Path(self.output_folder, self.hex.name).with_suffix(".cnv")}' +
+                        f' /i{self.hex if name == "datcnv" else Path(self.output_folder, self.hex.stem + append).with_suffix(input_ending.get(name, ".cnv"))}' +
+                        (f' /a{append}' if append and name == "datcnv" else '') +
                         '\n'
                     )
         self.batch_file = batch_name
@@ -461,6 +482,12 @@ class SBE911_Measurement:
         ])
 
     def just_do_stuff(self, force: bool = True):
+        if self.bl:
+            self.create_btl_files(force=force)
+            self.create_sbe_batch_file(force=force, append='_u')
+            self.run_batch()
+
+        self.psa_dict = dict()
         self.create_all_psa(force=force)
         self.create_sbe_batch_file(force=force)
         self.run_batch()
@@ -477,10 +504,10 @@ class SHARKTOOLS_Measurement(SBE911_Measurement):
             hex_data = hex.read()
             date = re.search(r'^\* System UTC = ([\w \d:]*)$', hex_data, re.M)
             assert date
-            measurement_start = datetime.datetime.strptime(date[1],'%b %d %Y %H:%M:%S')
+            measurement_start = datetime.datetime.strptime(date[1], '%b %d %Y %H:%M:%S')
             measurement_start_str = measurement_start.strftime('%Y%m%d_%H%M')
             # * System UTC = May 17 2023 10:50:11
-        with open(Path(get_base_path(), 'data', 'expedition_specific.yaml'),
+        with open(Path(get_base_path(), 'config', 'expedition_specific.yaml'),
                   'r') as yaml_file:
             extra_data = yaml.safe_load(yaml_file)
         return Path(str(measurement_start.year), 'cnv', f'sbe09_{pressure_sensor}_{measurement_start_str}_{extra_data["ship_name"]}_{extra_data["cruise_number"]:02d}_0000.cnv')
@@ -505,8 +532,6 @@ class SHARKTOOLS_Measurement(SBE911_Measurement):
             sharktools_file.write(data.replace('par: PAR/Irradiance, Biospherical/Licor', 'par: PAR/Irradiance, Biospherical/Licor [µE/(cm^2*s)]'))
 
     def just_do_stuff(self, force: bool = True,  destination_folder: str | Path ="data/select_this_one_for_sharktools"):
-        self.create_all_psa(force=force)
-        self.create_sbe_batch_file(force=force)
-        self.run_batch()
+        super().just_do_stuff(force=force)
         self.rename(destination_folder)
         self.fix_units(destination_folder)
