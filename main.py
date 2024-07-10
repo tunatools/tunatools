@@ -109,7 +109,7 @@ class modified_Measurement(tunatools.SHARKTOOLS_Measurement):
                     opened_hex_file.write(hex_content.replace('* NMEA UTC (Time)', f'{lat}\n{lon}\n* NMEA UTC (Time)'))
                 self.hex = shadow_file
                 possible_bl = self.hex.with_suffix('.bl')
-                if possible_bl and tunatools.valid_bl_file(possible_bl):
+                if possible_bl.is_file() and tunatools.valid_bl_file(possible_bl):
                     # Copying should be better...
                     shadow_bl_file = pathlib.Path(shadow_folder, possible_bl.name)
                     with open(shadow_bl_file) as opened_shadow_bl_file:

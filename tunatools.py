@@ -476,7 +476,7 @@ class SBE911_Measurement:
     def just_do_stuff(self, force: bool = True):
         # The bottle file must have the same stem as hex for seabird!
         possible_bl = self.hex.with_suffix('.bl')
-        if possible_bl and valid_bl_file(possible_bl):
+        if possible_bl.is_file() and valid_bl_file(possible_bl):
             self.create_btl_files(force=force)
             self.create_sbe_batch_file(force=force, append='_u')
             self.run_batch()
