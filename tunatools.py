@@ -157,7 +157,6 @@ class SBE911_Measurement:
         # Bottle files must share the same stem as the hex file!
         self.xmlcon = None
         self.hex = None
-        self.bl = None
         self.psa_dict = dict()
 
         self.source_folder = Path(kwargs.get('source_folder', 'data/raw'))
@@ -188,7 +187,7 @@ class SBE911_Measurement:
                 args = list(self.source_folder.glob(f'{args.stem}.*'))
                 args = [arg.absolute() for arg in args]
 
-        # [AOM23-station-04-cast1.xmlcon, AOM23-station-04-cast1.hex, AOM23-station-04-cast1.bl, ...]
+        # [AOM23-station-04-cast1.xmlcon, AOM23-station-04-cast1.hex, ...]
         if type(args) is list or type(args) is tuple:
             args_dict = dict()
             if any(type(arg) is str for arg in args):
@@ -216,7 +215,6 @@ class SBE911_Measurement:
             hex_file = args.get('hex')
             assert (xmlcon and hex_file), \
                 "Your dictionary does not have a xmlcon AND a hex file."
-            bl = args.get('bl')
 
             if not is_windows_path(xmlcon):
                 xmlcon = Path(xmlcon)
@@ -225,18 +223,11 @@ class SBE911_Measurement:
             if not is_windows_path(hex_file):
                 hex_file = Path(hex_file)
             self.hex = hex_file
-            if bl:
-                if not is_windows_path(bl):
-                    bl = Path(bl)
-                self.bl = bl
 
         # Make everything absolute paths (again)
-        for file in ['xmlcon', 'hex', 'bl']:
+        for file in ['xmlcon', 'hex']:
             if getattr(self, file) and not getattr(self, file).is_absolute():
                 setattr(self, file, Path(self.source_folder, getattr(self, file)))
-
-        if self.bl and not valid_bl_file(self.bl):
-            self.bl = None
 
     def parse_lat_lon(self) -> (float, float):
         """Parses the hexfile and looks for NMEA coordinates. Parses them from degrees
@@ -257,7 +248,7 @@ class SBE911_Measurement:
         lon_DD = (-1 if EW == "W" else 1) * (int(d) + float(m) / 60.)
         return lat_DD, lon_DD
 
-    def create_datcnv_psa(self, force: bool = False, include_upcast=False) -> Path:
+    def create_datcnv_psa(self, force: bool = False, include_upcast: bool = False, for_ros_file: bool = False) -> Path:
         psa_filename = Path(self.psa_folder,
                             f'dat_cnv_{self.hex.stem}{"_u" if include_upcast else ''}.psa')
         if force or not psa_filename.is_file():
@@ -270,7 +261,7 @@ class SBE911_Measurement:
                                   ignore_ids=ignore_ids)
             root = main.getroot()
 
-            if self.bl:
+            if for_ros_file:
                 products = root.find('CreateFile')
                 products.set('value', '2')
 
@@ -435,7 +426,7 @@ class SBE911_Measurement:
             derive_array.tag = 'DeriveCalcArray'
             root.extend([derive_array])
 
-            root.find('ServerName').set('value', 'Bottle_Summary')  # not required
+            root.find('ServerName').set('value', 'Bottle_Summary')
 
             if sys.version_info >= (3, 9):
                 ET.indent(main)
@@ -444,17 +435,17 @@ class SBE911_Measurement:
         return psa_filename
 
     def create_all_psa(self, force=False):
-        self.create_datcnv_psa(force)
-        self.create_filter_psa(force)
-        self.create_alignctd_psa(force)
+        self.create_datcnv_psa(force=force)
+        self.create_filter_psa(force=force)
+        self.create_alignctd_psa(force=force)
         self.create_celltm_psa()
         self.create_loopedit_psa()
-        self.create_derive_psa(force)
+        self.create_derive_psa(force=force)
         self.create_binavg_psa()
 
     def create_btl_files(self, force=False):
-        self.create_datcnv_psa(force=force, include_upcast=True)
-        self.create_bottlesum_psa(force)
+        self.create_datcnv_psa(force=force, include_upcast=True, for_ros_file=True)
+        self.create_bottlesum_psa(force=force)
 
     def create_sbe_batch_file(self, force: bool = False, append: str = ''):
         batch_name = Path(self.psa_folder, f'batch_{self.hex.stem}{append}.txt')
@@ -483,7 +474,9 @@ class SBE911_Measurement:
         ])
 
     def just_do_stuff(self, force: bool = True):
-        if self.bl:
+        # The bottle file must have the same stem as hex for seabird!
+        possible_bl = self.hex.with_suffix('.bl')
+        if possible_bl and valid_bl_file(possible_bl):
             self.create_btl_files(force=force)
             self.create_sbe_batch_file(force=force, append='_u')
             self.run_batch()

@@ -108,13 +108,13 @@ class modified_Measurement(tunatools.SHARKTOOLS_Measurement):
                     # This assumes there is NMEA time. This seems to not always be the case
                     opened_hex_file.write(hex_content.replace('* NMEA UTC (Time)', f'{lat}\n{lon}\n* NMEA UTC (Time)'))
                 self.hex = shadow_file
-                if self.bl:
+                possible_bl = self.hex.with_suffix('.bl')
+                if possible_bl and tunatools.valid_bl_file(possible_bl):
                     # Copying should be better...
-                    shadow_bl_file = pathlib.Path(shadow_folder, self.bl.name)
+                    shadow_bl_file = pathlib.Path(shadow_folder, possible_bl.name)
                     with open(shadow_bl_file) as opened_shadow_bl_file:
-                        with open(self.bl, 'r') as bl_file:
+                        with open(possible_bl, 'r') as bl_file:
                             opened_shadow_bl_file.write(bl_file.read())
-                    self.bl = shadow_bl_file
 
 
     def shadow_xmlcon(self) -> None:
