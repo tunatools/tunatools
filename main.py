@@ -340,9 +340,6 @@ class Window(QMainWindow):
     def process_single(self):
         assert self.hex.is_file() and self.xmlcon.is_file(), 'No valid xmlcon and hex'
         measurement = modified_Measurement({'hex': self.hex, 'xmlcon': self.xmlcon})
-        potential_bottle_file = self.hex.with_suffix('.bl')
-        if potential_bottle_file.is_file():
-            measurement.bl = potential_bottle_file
         measurement.just_do_stuff(force=True)
 
 
