@@ -1,14 +1,18 @@
 # Remove to not filter, or change to value: 0
+# according to SBE manual, for a SBE9plus pressure should be
+# filtered with a lowpass filter constant of 0.15 and all other parameters should not be filtered
+Pressure, Digiquartz [db]:
+  value: 2
 Temperature [ITS-90, deg C]:
-  value: 2
+  value: 0
 Temperature, 2 [ITS-90, deg C]:
-  value: 2
+  value: 0
 Conductivity [S/m]:
-  value: 1
+  value: 0
 Conductivity, 2 [S/m]:
-  value: 1
+  value: 0
 Turbidity, WET Labs ECO [NTU]:
-  value: 2
+  value: 0
 # Extra entries are ignored if there is no data corresponding to this type
 Tunasalad:
   value: 4
