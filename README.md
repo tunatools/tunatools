@@ -1,6 +1,10 @@
 # Install Tunatools
-git clone https://github.com/tunatools/PSA_Creator && python -m venv venv_tunatools && "venv_tunatools/Scripts/activate" && python -m pip install -r requirements.txt
-
+```
+git clone https://github.com/tunatools/tunatools
+python -m venv venv_tunatools
+"venv_tunatools/Scripts/activate"
+python -m pip install -r requirements.txt
+```
 
 # Using tunatools
 
