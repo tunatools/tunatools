@@ -23,45 +23,6 @@ import datetime
 import dateutil.parser
 from multiprocessing import Pool
 
-
-class GetCoordinates(QMainWindow):
-    def __init__(self, measurement):
-        super().__init__(parent=None)
-        self.setWindowTitle("Fixing missing coordinates")
-
-        widget = QWidget()
-        # width, height
-        self.resize(300, 160)
-        layout = QGridLayout()
-        widget.setLayout(layout)
-        #self.setWindowIcon(QIcon(':/icons/icon'))
-
-        self.lat = QLineEdit()
-        self.lat.setValidator(QDoubleValidator(-90., 90., 4))
-
-        self.lon = QLineEdit()
-        self.lon.setValidator(QDoubleValidator(-180., 180., 4))
-
-        layout.addWidget(QLabel('Your measurement {measurement.hex} is missing coordinates. If this should work with SHARKtools fix them here'), 0, 0, 1, 2)
-
-        layout.addWidget(QLabel('lat (N/S)'), 1, 0)
-        layout.addWidget(QLabel('lon (E/W)'), 2, 0)
-        layout.addWidget(self.lat, 1, 1)
-        layout.addWidget(self.lon, 2, 1)
-
-        continue_button = QPushButton('Continue')
-        continue_button.clicked.connect(self.parse_coords)
-        self.setCentralWidget(widget)
-
-    def parse_coords(self):
-        try:
-            lat = float(self.lat.value)
-            lon = float(self.lon.value)
-        except ValueError:
-            pass
-        return lat, lon
-
-
 class modified_Measurement(tunatools.SHARKTOOLS_Measurement):
     """An SBE911 Measurement with some overwrites to the class to make coordinates fixable on the flight!"""
     def __init__(self, *args, **kwargs):
@@ -192,10 +153,10 @@ def get_coords(measurement, lat=None, lon=None):
     dialog.setLayout(layout)
 
     lat = QLineEdit(lat)
-    lat.setValidator(QDoubleValidator(-90., 90., 2))
+    lat.setValidator(QDoubleValidator(-90., 90., 4))
 
     lon = QLineEdit(lon)
-    lon.setValidator(QDoubleValidator(-180., 180., 2))
+    lon.setValidator(QDoubleValidator(-180., 180., 4))
 
     layout.addWidget(QLabel(
         f'Your measurement {measurement.hex.name} is missing coordinates.\nIf this should work with SHARKtools fix them here'),
