@@ -333,7 +333,6 @@ class SBE911_Measurement:
             for arrayelement in root.findall('.//CalcArrayItem'):
                 index = arrayelement.get('index')
                 fullname = arrayelement.find('.//FullName')
-
                 if fullname.get('value') in alignctd:
                     value = alignctd[fullname.get('value')]['value']
                 else:
@@ -370,6 +369,7 @@ class SBE911_Measurement:
             root = main.getroot()
             aca = ET.SubElement(root, 'ValArray')
             root.find('ServerName').set('value', 'Data Conversion')
+            fix_lat_lon(root, coords)
             if sys.version_info >= (3, 9):
                 ET.indent(main)
             main.write(psa_filename)
