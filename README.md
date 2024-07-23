@@ -1,9 +1,11 @@
 # Install Tunatools
 ```
-git clone https://github.com/tunatools/tunatools
+git clone https://github.com/tunatools/tunatools 
+cd tunatools
+echo ^"venv_tunatools\Scripts\activate^" ^&^& python main.py > run_tunatools.bat
 python -m venv venv_tunatools
 "venv_tunatools/Scripts/activate"
-python -m pip install -r tunatools/requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 # Using tunatools
