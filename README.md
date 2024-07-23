@@ -2,7 +2,7 @@
 ```
 git clone https://github.com/tunatools/tunatools 
 cd tunatools
-echo ^"venv_tunatools\Scripts\activate^" ^&^& python main.py > run_tunatools.bat
+echo ^"venv_tunatools\Scripts\activate^" ^&^& python main.py > run_tunatools.cmd
 python -m venv venv_tunatools
 "venv_tunatools/Scripts/activate"
 python -m pip install -r requirements.txt
