@@ -3,7 +3,7 @@
 git clone https://github.com/tunatools/tunatools
 python -m venv venv_tunatools
 "venv_tunatools/Scripts/activate"
-python -m pip install -r requirements.txt
+python -m pip install -r tunatools/requirements.txt
 ```
 
 # Using tunatools
