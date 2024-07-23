@@ -105,8 +105,7 @@ class modified_Measurement(tunatools.SHARKTOOLS_Measurement):
                 lat = f'* NMEA Latitude = {int(abs(lat_DD)):02d} {abs(lat_DD)%1*60:4.2f} {"N" if lat_DD>0 else "S"}'
                 lon = f'* NMEA Longitude = {int(abs(lon_DD)):03d} {abs(lon_DD)%1*60:4.2f} {"E" if lat_DD>0 else "W"}'
                 with open(shadow_file, 'w') as opened_hex_file:
-                    # This assumes there is NMEA time. This seems to not always be the case
-                    opened_hex_file.write(hex_content.replace('* NMEA UTC (Time)', f'{lat}\n{lon}\n* NMEA UTC (Time)'))
+                    opened_hex_file.write(hex_content.replace('* SBE 11plus', f'{lat}\n{lon}\n* SBE 11plus', 1))
                 self.hex = shadow_file
                 possible_bl = self.hex.with_suffix('.bl')
                 if possible_bl.is_file() and tunatools.valid_bl_file(possible_bl):

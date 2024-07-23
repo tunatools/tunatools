@@ -1,7 +1,11 @@
 # Remove to not filter, or change to value: 0
 Temperature [ITS-90, deg C]:
   value: 2
+Temperature, 2 [ITS-90, deg C]:
+  value: 2
 Conductivity [S/m]:
+  value: 1
+Conductivity, 2 [S/m]:
   value: 1
 Turbidity, WET Labs ECO [NTU]:
   value: 2
