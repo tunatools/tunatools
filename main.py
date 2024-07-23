@@ -37,10 +37,10 @@ class GetCoordinates(QMainWindow):
         #self.setWindowIcon(QIcon(':/icons/icon'))
 
         self.lat = QLineEdit()
-        self.lat.setValidator(QDoubleValidator(-90., 90., 2))
+        self.lat.setValidator(QDoubleValidator(-90., 90., 4))
 
         self.lon = QLineEdit()
-        self.lon.setValidator(QDoubleValidator(-180., 180., 2))
+        self.lon.setValidator(QDoubleValidator(-180., 180., 4))
 
         layout.addWidget(QLabel('Your measurement {measurement.hex} is missing coordinates. If this should work with SHARKtools fix them here'), 0, 0, 1, 2)
 
