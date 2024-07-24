@@ -63,8 +63,8 @@ class modified_Measurement(tunatools.SHARKTOOLS_Measurement):
             coords = get_coords(self, lat_DD, lon_DD)
             if coords:
                 lat_DD, lon_DD = coords
-                lat = f'* NMEA Latitude = {int(abs(lat_DD)):02d} {abs(lat_DD)%1*60:04.2f} {"N" if lat_DD>0 else "S"}'
-                lon = f'* NMEA Longitude = {int(abs(lon_DD)):03d} {abs(lon_DD)%1*60:04.2f} {"E" if lat_DD>0 else "W"}'
+                lat = f'* NMEA Latitude = {int(abs(lat_DD)):02d} {abs(lat_DD)%1*60:05.2f} {"N" if lat_DD>0 else "S"}'
+                lon = f'* NMEA Longitude = {int(abs(lon_DD)):03d} {abs(lon_DD)%1*60:05.2f} {"E" if lat_DD>0 else "W"}'
                 with open(shadow_file, 'w') as opened_hex_file:
                     opened_hex_file.write(hex_content.replace('* SBE 11plus', f'{lat}\n{lon}\n* SBE 11plus', 1))
                 self.hex = shadow_file
