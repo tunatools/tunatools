@@ -281,7 +281,7 @@ class SBE911_Measurement:
         psa_filename = Path(self.psa_folder, f'filter_{self.hex.stem}.psa')
         if force or not psa_filename.is_file():
             coords = self.parse_lat_lon()
-            ignore_ids = [-1]
+            ignore_ids = [-1, 52]
             if not coords:
                 ignore_ids += [4]
             main = build_base_psa('Filter', self.xmlcon,
@@ -317,7 +317,7 @@ class SBE911_Measurement:
         psa_filename = Path(self.psa_folder, f'alignctd_{self.hex.stem}.psa')
         if force or not psa_filename.is_file():
             coords = self.parse_lat_lon()
-            ignore_ids = [-1]
+            ignore_ids = [-1, 52]
             if not coords:
                 ignore_ids += [4]
             # Ignore id=3 (Pressure) because all the other values are aligned against it
@@ -361,7 +361,7 @@ class SBE911_Measurement:
                                   ['psa_base.yaml', 'psa_derive.yaml'], ignore_ids=ignore_ids,
                                   default=None, optional="psa_derive_optional.yaml",
                                   ignore_sensors=[
-                                            'FluoroWetlabECO_AFL_FL_Sensor',
+                                            'PressureSensor', 'FluoroWetlabECO_AFL_FL_Sensor',
                                             'TurbidityMeter', 'Fluorometer',
                                             'PAR_BiosphericalLicorChelseaSensor',
                                             'SPAR_Sensor',

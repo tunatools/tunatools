@@ -8,10 +8,20 @@ ConductivitySensor:
     - FullName: Salinity, Practical [PSU]
       UnitID: 49
       CalcID: 70
+    - FullName: Density [density, kg/m^3]
+      UnitID: 11
+      CalcID: 15
+    - FullName: Density [sigma-theta, kg/m^3]
+      UnitID: 53
+      CalcID: 15
 TemperatureSensor:
     - FullName: Potential Temperature [ITS-90, deg C]
       UnitID: 6
       CalcID: 62
+PressureSensor:
+    - FullName: Sound Velocity [Chen-Millero, m/s]
+      UnitID: 33
+      CalcID: 74
 AltimeterSensor:
     - FullName: Depth [salt water, m]
       UnitID: 31
@@ -25,13 +35,6 @@ AltimeterSensor:
       extra:
           Latitude:
               value: 57.
-PressureSensor:
-    - FullName: Density [density, kg/m^3]
-      UnitID: 11
-      CalcID: 15
-    - FullName: Sound Velocity [Chen-Millero, m/s]
-      UnitID: 33
-      CalcID: 74
 OxygenSensor:
     - FullName: Oxygen, SBE 43 [ml/l]
       UnitID: 40

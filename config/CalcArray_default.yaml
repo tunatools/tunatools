@@ -16,3 +16,6 @@
 - FullName: Longitude [deg]
   CalcID: 40
   UnitID: 4
+- FullName: Time, Elapsed [seconds]
+  CalcID: 84
+  UnitID: 52

@@ -84,6 +84,6 @@ ScanRangeDuration:
   value: "2.000000"
 StartTimeOption:
   # 0: INSTRUMENT TIME STAMP; 1: NMEA TIME; 2: UTC
-  value: "0"
+  value: "1"
 PromptForNoteAndOrStartTime:
   value: "0"

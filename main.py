@@ -301,7 +301,9 @@ class Window(QMainWindow):
         assert self.hex.is_file() and self.xmlcon.is_file(), 'No valid xmlcon and hex'
         measurement = modified_Measurement({'hex': self.hex, 'xmlcon': self.xmlcon})
         measurement.just_do_stuff(force=True)
-
+        self.continue_button.setText('Done!')
+        self.continue_button.clicked.disconnect()
+        self.continue_button.clicked.connect(QApplication.instance().quit)
 
     def process(self):
         for ms in self.measurements:
