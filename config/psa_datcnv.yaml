@@ -73,8 +73,8 @@ CreateFile:
   initialValue: "0"
 
 ScanRangeSource:
-  # 1: from .bl file
-  value: "1"
+  #0: Auto-fire module or ECO (.AFM file); 1: from .bl file; 2: bottle scan range (.bsr file); 3: Scans marked with bottle confirm bit
+  value: "3"
   high: "3"
   low: "0"
   initialValue: "1"
