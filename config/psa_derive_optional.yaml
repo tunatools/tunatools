@@ -56,3 +56,10 @@ OxygenSensor:
               value: 1
           ApplyTauCorrection:
               value: 1
+DescentRate:
+  - FullName: Descent Rate [m/s]
+    UnitID: 32
+    CalcID: 18
+    extra:
+        WindowSize:
+          value: 2.0
